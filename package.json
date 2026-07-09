@@ -1,0 +1,21 @@
+{
+  "name": "@workspace/fretwork",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --config vite.config.js --host 0.0.0.0",
+    "build": "vite build --config vite.config.js",
+    "serve": "vite preview --config vite.config.js --host 0.0.0.0",
+    "typecheck": "echo 'No TypeScript - skipping typecheck'"
+  },
+  "dependencies": {
+    "@coderline/alphatab": "^1.8.2"
+  },
+  "devDependencies": {
+    "@coderline/alphatab-vite": "^1.8.2",
+    "@sveltejs/vite-plugin-svelte": "^5.0.0",
+    "svelte": "^5.0.0",
+    "vite": "^8.0.0"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "Fretwork",
+  "short_name": "Fretwork",
+  "description": "Fretwork — a Svelte-based Guitar Pro tab editor and player.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1f2937",
+  "orientation": "any",
+  "categories": ["music", "utilities"],
+  "id": "/",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
