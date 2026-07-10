@@ -1,42 +1,47 @@
-# sv
+Here is the condensed reference for the alphaTab toolbar, organized for quick navigation:
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+### 🎼 Score (Global & Playback)
 
-## Creating a project
+* **File:** New, Import (GP/alphaTex formats), Export (PDF/MIDI/GP).
+* **Metadata:** Edit Title and Artist.
+* **Playback:** Play/Stop, Metronome (Toggle/Vol), Count-In, Tempo Scale, SoundFont Selector.
+* **View:** Zoom (0.5x–2.0x), Layout (Page/Continuous), Notation (Standard/Tab).
+* **Voices:** Presets, String Count (4–8), Custom String Pitches.
+* **loop:** loop playback.
 
-If you're seeing this, you've probably already done this step. Congrats!
+---
 
-```sh
-# create a new project
-npx sv create my-app
-```
+### 🎸 Track (Instrumentation)
 
-To recreate this project with the same configuration:
+* **Management:** Add, Remove, Rename.
+* **Mixer:** Mute, Solo, Visibility (👁).
+* **Instrument:** MIDI Program Selector.
+* **Tuning:** Presets, String Count (4–8), Custom String Pitches.
+* **Staves:** add linked staves
 
-```sh
-# recreate this project
-npx sv@0.16.2 create --template minimal --no-types --install npm ./
-```
 
-## Developing
+---
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+### 📅 Bar (Measure & Timing)
 
-```sh
-npm run dev
+* **Editing:** Add/Delete Measure.
+* **Structure:** Time Signature, Key Signature, Clef, BPM.
+* **Feel:** Triplet Feel (Swing).
+* **Repetition:** Repeat Open/Close, Repeat Count, Volta (Alternate Endings).
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
+---
 
-## Building
+### 🥁 Beat (Rhythm & Dynamics)
 
-To create a production version of your app:
+* **Duration:** Length (Whole–32nd), Dotted Notes, Tuplets.
+* **Dynamics:** Velocity (ppp–fff), Crescendo/Decrescendo, Fades. stattaco, accent/heacyacc, tenuto
+* **Technique:** Arpeggio/Brush, Wah, Slap/Pop, Rasgueado, Whammy/Tremolo, Ottava.
+* **Text:** Lyrics, Beat Text.
 
-```sh
-npm run build
-```
+---
 
-You can preview the production build with `npm run preview`.
+### 🎵 Note (Articulations)
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+* **Input:** Fret Numpad, String Navigation, Delete.
+* **Timbre:** Palm Mute, Ghost Note, Dead Note, Vibrato, Tapping, Accent, Pick Stroke.
+* **Transitions:** Let Ring, Legato (HO/PO), Tie, Slide, Bend, Harmonic, Grace Note.
