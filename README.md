@@ -2,7 +2,7 @@ Here is the condensed reference for the alphaTab toolbar, organized for quick na
 
 ### 🎼 Score (Global & Playback)
 
-* **File:** New, Import (GP/alphaTex formats), Export (PDF/MIDI/GP).
+* **File:** New score, Import (GP/alphaTex formats), save changes, Export (PDF/.atex/GP).
 * **Metadata:** Edit Title and Artist.
 * **Playback:** Play/Stop, Metronome (Toggle/Vol), Count-In, Tempo Scale, SoundFont Selector.
 * **View:** Zoom (0.5x–2.0x), Layout (Page/Continuous), Notation (Standard/Tab).
