@@ -22,15 +22,15 @@
 </div>
 
 <div id="tab-content">
-  {#if (activeTab = "score")}
+  {#if activeTab === "score"}
     <Score></Score>
-  {:else if (activeTab = "track")}
+  {:else if activeTab === "track"}
     <Track></Track>
-  {:else if (activeTab = "bar")}
+  {:else if activeTab === "bar"}
     <Bar></Bar>
-  {:else if (activeTab = "beat")}
+  {:else if activeTab === "beat"}
     <Beat></Beat>
-  {:else if (activeTab = "note")}
+  {:else if activeTab === "note"}
     <Note></Note>
   {/if}
 </div>
@@ -45,6 +45,7 @@
     gap: 2px;
   }
   #tabs button {
+    text-transform: capitalize;
     padding: 6px 14px;
     border: none;
     border-radius: 8px;
@@ -56,6 +57,5 @@
     background: #fff;
     color: #111;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
-    font-weight: 600;
   }
 </style>
