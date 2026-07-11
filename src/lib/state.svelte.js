@@ -9,26 +9,10 @@ export const editorState = $state({
   zoom: 1,
 });
 
-export function initApi(canvasEl) {
+export function initApi(canvasEl, settings) {
   if (!canvasEl) return;
-
   destroyApi();
-
-  editorState.tabApi = new alphaTab.AlphaTabApi(canvasEl, {
-    enableLazyLoading: true,
-    core: {
-      fontDirectory: "/font/",
-      includeNoteBounds: true,
-    },
-    player: {
-      soundFont: "/soundfont/sonivox.sf3",
-      enablePlayer: true,
-    },
-    display: {
-      effectBandPaddingBottom: 8,
-      firstNotationStaffPaddingTop: 4,
-    },
-  });
+  editorState.tabApi = new alphaTab.AlphaTabApi(canvasEl, settings);
 }
 
 export function destroyApi() {
@@ -36,10 +20,10 @@ export function destroyApi() {
   editorState.tabApi = null;
 }
 
-export function openFile(path) {
-  editorState.currentFileSource = path;
+export function openFile(data) {
+  editorState.currentFileSource = data;
 
   if (editorState.tabApi) {
-    editorState.tabApi.load(path);
+    editorState.tabApi.load(data);
   }
 }
