@@ -1,5 +1,5 @@
 <script>
-  import ScoreViewport from "$lib/components/ScoreViewport.svelte";
+  import Viewer from "$lib/components/Viewer.svelte";
   import Toolbar from "$lib/components/Toolbar.svelte";
 </script>
 
@@ -8,7 +8,7 @@
 </svelte:head>
 
 <div id="ui-container">
-  <ScoreViewport></ScoreViewport>
+  <Viewer></Viewer>
   <Toolbar></Toolbar>
 </div>
 

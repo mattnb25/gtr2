@@ -42,7 +42,7 @@
     border-top: 1px solid #e0e0e0;
     border-bottom: 1px solid #e0e0e0;
     padding: 4px;
-    gap: 2px;
+    gap: 4px;
   }
   #tabs button {
     text-transform: capitalize;
@@ -57,5 +57,9 @@
     background: #fff;
     color: #111;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  }
+
+  #tabs button:hover:not(.active) {
+    color: #111;
   }
 </style>
