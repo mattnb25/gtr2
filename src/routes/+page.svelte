@@ -1,6 +1,6 @@
 <script>
-  import Viewer from "$lib/components/Viewer.svelte";
-  import Toolbar from "$lib/components/Toolbar.svelte";
+  import Viewer from "$lib/ui/Viewer.svelte";
+  import Toolbar from "$lib/ui/Toolbar.svelte";
 </script>
 
 <svelte:head>

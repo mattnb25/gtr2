@@ -19,11 +19,3 @@ export function destroyApi() {
   editorState.tabApi?.destroy();
   editorState.tabApi = null;
 }
-
-export function openFile(data) {
-  editorState.currentFileSource = data;
-
-  if (editorState.tabApi) {
-    editorState.tabApi.load(data);
-  }
-}

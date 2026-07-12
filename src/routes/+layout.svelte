@@ -6,19 +6,6 @@
 
 <svelte:head>
   <link rel="icon" href={favicon} />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&opsz@14..32&display=swap"
-    rel="stylesheet"
-  />
-  <!-- plex sans -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&display=swap"
-    rel="stylesheet"
-  />
 </svelte:head>
 
 {@render children()}
@@ -31,6 +18,11 @@
     line-height: 1.5;
   }
   :global(html) {
-    font-family: "Inter", sans-serif;
+    font-family: "Arial", sans-serif;
+    font-size: 62.5%;
+  }
+  :global(button) {
+    cursor: pointer;
+    transition: all 0.15s;
   }
 </style>

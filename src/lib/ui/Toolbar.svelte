@@ -8,19 +8,6 @@
   let activeTab = $state("score");
 </script>
 
-<div id="tabs">
-  {#each ["score", "track", "bar", "beat", "note"] as tab}
-    <button
-      class:active={activeTab === tab}
-      onclick={() => {
-        activeTab = tab;
-      }}
-    >
-      {tab}
-    </button>
-  {/each}
-</div>
-
 <div id="tab-content">
   {#if activeTab === "score"}
     <Score></Score>
@@ -35,31 +22,47 @@
   {/if}
 </div>
 
+<div id="tabs">
+  {#each ["score", "track", "bar", "beat", "note"] as tab}
+    <button
+      class:active={activeTab === tab}
+      onclick={() => {
+        activeTab = tab;
+      }}
+    >
+      {tab}
+    </button>
+  {/each}
+</div>
+
 <style>
   #tabs {
     display: flex;
     background: #f5f5f5;
-    border-top: 1px solid #e0e0e0;
-    border-bottom: 1px solid #e0e0e0;
+    border: solid #e0e0e0;
+    border-width: 1px 0;
     padding: 4px;
     gap: 4px;
   }
   #tabs button {
     text-transform: capitalize;
-    padding: 6px 14px;
-    border: none;
+    padding: 4px 14px;
+    border: 1px solid transparent;
     border-radius: 8px;
     background: transparent;
     color: dimgray;
-    transition: all 0.15s;
   }
   #tabs button.active {
     background: #fff;
-    color: #111;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+    color: black;
+    border: 1px solid #e0e0e0;
   }
 
   #tabs button:hover:not(.active) {
-    color: #111;
+    color: black;
+  }
+  #tab-content {
+    padding: 4px;
+    gap: 4px;
   }
 </style>
