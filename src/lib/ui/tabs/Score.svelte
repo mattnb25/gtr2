@@ -7,7 +7,7 @@
 
 <PopoverBtn name="open">
   <div class="header">Guitar Pro/AlphaTex</div>
-  <button onclick={() => fileInput.click()}>Open</button>
+  <button onclick={() => scoreCommands.tryFileApi(fileInput)}>Open</button>
   <button onclick={() => scoreCommands.newFile()}>New</button>
 </PopoverBtn>
 
@@ -15,29 +15,113 @@
   type="file"
   bind:this={fileInput}
   onchange={(e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) =>
-      scoreCommands.openFile(new Uint8Array(e.target.result));
-    reader.readAsArrayBuffer(file);
-    e.target.value = ""; // Reset input to allow re-opening same file
+    if (e.target.files[0]) scoreCommands.openFile(e.target.files[0]);
   }}
   accept=".gp,.gp3,.gp4,.gp5,.gpx,.atex"
   style="display: none;"
 />
 
-<PopoverBtn label="save"></PopoverBtn>
-<PopoverBtn label="info"></PopoverBtn>
-<PopoverBtn label="play"></PopoverBtn>
-<PopoverBtn label="zoom"></PopoverBtn>
-<PopoverBtn label="voice"></PopoverBtn>
+<PopoverBtn name="save">
+  <button onclick={() => scoreCommands.saveFile()}>Save</button>
+  <button onclick={() => scoreCommands.exportFile(".pdf")}>Export .pdf</button>
+  <button onclick={() => scoreCommands.exportFile(".gp")}>Export .gp</button>
+  <button onclick={() => scoreCommands.exportFile(".atex")}>Export .atex</button
+  >
+</PopoverBtn>
+
+<PopoverBtn name="info">
+  <div class="info-form">
+    <label>
+      Title
+      <input
+        value={scoreCommands.getScoreDetails("title")}
+        onchange={(e) => scoreCommands.updateScore("title", e.target.value)}
+      />
+    </label>
+    <label>
+      Subtitle
+      <input
+        value={scoreCommands.getScoreDetails("subTitle")}
+        onchange={(e) => scoreCommands.updateScore("subTitle", e.target.value)}
+      />
+    </label>
+    <label>
+      Artist
+      <input
+        value={scoreCommands.getScoreDetails("artist")}
+        onchange={(e) => scoreCommands.updateScore("artist", e.target.value)}
+      />
+    </label>
+    <label>
+      Album
+      <input
+        value={scoreCommands.getScoreDetails("album")}
+        onchange={(e) => scoreCommands.updateScore("album", e.target.value)}
+      />
+    </label>
+    <label>
+      Words
+      <input
+        value={scoreCommands.getScoreDetails("words")}
+        onchange={(e) => scoreCommands.updateScore("words", e.target.value)}
+      />
+    </label>
+    <label>
+      Music
+      <input
+        value={scoreCommands.getScoreDetails("music")}
+        onchange={(e) => scoreCommands.updateScore("music", e.target.value)}
+      />
+    </label>
+    <label>
+      Copyright
+      <input
+        value={scoreCommands.getScoreDetails("copyright")}
+        onchange={(e) => scoreCommands.updateScore("copyright", e.target.value)}
+      />
+    </label>
+  </div>
+</PopoverBtn>
+
+<label for="zoom">Zoom:</label>
+<div class="zoom-controls">
+  <input type="range" min="0.5" max="2" step="0.05" />
+  <span> ? </span>
+</div>
+
+<label for="voice">Voice:</label>
+<div class="voice-controls">
+  <button>1</button>
+  <button>2</button>
+  <button>3</button>
+  <button>4</button>
+</div>
 
 <style>
   .header {
     padding: 4px 8px;
     font-size: 1.2rem;
-    text-transform: uppercase;
     color: dimgray;
+    text-transform: uppercase;
+  }
+
+  .info-form {
+    max-width: 280px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .info-form input {
+    width: 100%;
+    padding: 4px 8px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    margin: 2px 0;
+  }
+
+  .info-form input:focus {
+    outline: none;
+    border-color: #5a6ee0;
   }
 </style>

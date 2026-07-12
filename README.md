@@ -1,8 +1,8 @@
 inspired by: [https://bubiche.github.io/fretwork/]
+TO do:
 
 ### 🎼 Score (Global & Playback)
 
-- **File:** New score, Import (GP/alphaTex formats), save changes, Export (PDF/.atex/GP).
 - **Metadata:** Edit Title and Artist.
 - **Playback:** Play/Stop, Metronome (Toggle/Vol), Count-In, Tempo Scale, SoundFont Selector.
 - **View:** Zoom (0.5x–2.0x), Layout (Page/Continuous), Notation (Standard/Tab).

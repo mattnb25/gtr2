@@ -16,6 +16,9 @@
       soundFont: "/soundfont/sonivox.sf3",
       enablePlayer: true,
     },
+    display: {
+      padding: [18, 28],
+    },
   };
 
   onMount(() => {

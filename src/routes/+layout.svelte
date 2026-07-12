@@ -24,5 +24,19 @@
   :global(button) {
     cursor: pointer;
     transition: all 0.15s;
+    text-transform: capitalize;
+    padding: 4px 14px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background: transparent;
+  }
+
+  :global(input) {
+    transition: all 0.15s;
+  }
+
+  :global(label) {
+    color: dimgray;
+    text-transform: uppercase;
   }
 </style>

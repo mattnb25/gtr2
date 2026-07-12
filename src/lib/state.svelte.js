@@ -2,11 +2,8 @@ import * as alphaTab from "@coderline/alphatab";
 
 export const editorState = $state({
   tabApi: null,
-  currentFileSource: null,
+  fileHandle: null,
   hasUnsavedChanges: false,
-  isLoading: false,
-  selectedTrack: 0,
-  zoom: 1,
 });
 
 export function initApi(canvasEl, settings) {

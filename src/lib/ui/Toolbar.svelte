@@ -44,14 +44,12 @@
     padding: 4px;
     gap: 4px;
   }
+
   #tabs button {
-    text-transform: capitalize;
-    padding: 4px 14px;
     border: 1px solid transparent;
-    border-radius: 8px;
-    background: transparent;
     color: dimgray;
   }
+
   #tabs button.active {
     background: #fff;
     color: black;
@@ -61,8 +59,11 @@
   #tabs button:hover:not(.active) {
     color: black;
   }
+
   #tab-content {
+    display: flex;
     padding: 4px;
     gap: 4px;
+    align-items: center;
   }
 </style>

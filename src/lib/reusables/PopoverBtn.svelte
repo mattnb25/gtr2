@@ -4,7 +4,7 @@
 
 <button
   popovertarget={`menu-${name}`}
-  class="dropdown-btn"
+  class="popover-btn"
   style="anchor-name: --anchor-{name};"
 >
   {name} ▾
@@ -13,35 +13,37 @@
 <div
   id={`menu-${name}`}
   popover="auto"
-  class="dropdown-menu"
+  class="popover-menu"
   style="position-anchor: --anchor-{name};"
 >
   {@render children?.()}
 </div>
 
 <style>
-  .dropdown-btn {
+  .popover-btn {
     position: relative;
-    background-color: white;
-    border: 1px solid #e0e0e0;
-    border-radius: 4px;
-    padding: 4px 14px;
-    cursor: pointer;
   }
 
-  .dropdown-menu {
-    border-radius: 4px;
+  .popover-btn:active {
+    color: white;
+    background-color: #5a6ee0;
+    border: 1px solid #5a6ee0;
+  }
+
+  .popover-menu {
+    border-radius: 8px;
     border: 1px solid #e0e0e0;
     min-width: 150px;
     margin: 0;
-    padding: 4px;
+    margin-bottom: 8px;
+    padding: 8px 8px;
   }
 
   [popover]:popover-open {
     position-area: top span-right;
   }
 
-  :global(.dropdown-menu > button) {
+  :global(.popover-menu > button) {
     border: none;
     border-radius: 4px;
     background-color: transparent;
@@ -49,5 +51,9 @@
     width: 100%;
     text-align: left;
     padding: 4px 8px;
+  }
+  :global(.popover-menu > button:active) {
+    color: #5a6ee0;
+    background-color: #eef0fd;
   }
 </style>
