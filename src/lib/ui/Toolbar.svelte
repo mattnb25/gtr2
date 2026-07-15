@@ -65,5 +65,11 @@
     padding: 4px;
     gap: 4px;
     align-items: center;
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  :global(#tab-content > *) {
+    flex-shrink: 0;
   }
 </style>

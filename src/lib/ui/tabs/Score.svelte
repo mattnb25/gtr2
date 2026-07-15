@@ -83,19 +83,23 @@
   </div>
 </PopoverBtn>
 
-<label for="zoom">Zoom:</label>
-<div class="zoom-controls">
-  <input type="range" min="0.5" max="2" step="0.05" />
-  <span> ? </span>
-</div>
+<PopoverBtn name="zoom">
+  <button>25%</button>
+  <button>50%</button>
+  <button>75%</button>
+  <button>100%</button>
+  <button>125%</button>
+  <button>150%</button>
+  <button>175%</button>
+  <button>200%</button>
+</PopoverBtn>
 
-<label for="voice">Voice:</label>
-<div class="voice-controls">
+<PopoverBtn name="voice">
   <button>1</button>
   <button>2</button>
   <button>3</button>
   <button>4</button>
-</div>
+</PopoverBtn>
 
 <style>
   .header {
