@@ -1,7 +1,7 @@
 import * as alphaTab from "@coderline/alphatab";
 
-export const editorState = $state({
-  tabApi: null,
+export const state = $state({
+  api: null,
   fileHandle: null,
   hasUnsavedChanges: false,
 });
@@ -9,10 +9,10 @@ export const editorState = $state({
 export function initApi(canvasEl, settings) {
   if (!canvasEl) return;
   destroyApi();
-  editorState.tabApi = new alphaTab.AlphaTabApi(canvasEl, settings);
+  state.api = new alphaTab.AlphaTabApi(canvasEl, settings);
 }
 
 export function destroyApi() {
-  editorState.tabApi?.destroy();
-  editorState.tabApi = null;
+  state.api?.destroy();
+  state.api = null;
 }

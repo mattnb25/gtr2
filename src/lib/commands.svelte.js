@@ -1,5 +1,4 @@
-// gtr2\src\lib\commands.svelte.js
-import { editorState } from "$lib/state.svelte.js";
+import { state } from "$lib/state.svelte.js";
 import * as alphaTab from "@coderline/alphatab";
 
 const EXTENSIONS = [".gp", ".gp3", ".gp4", ".gp5", ".gpx", ".atex"];
@@ -11,7 +10,7 @@ export const scoreCommands = {
         types: [{ accept: { "application/octet-stream": EXTENSIONS } }],
       });
       const file = await handle.getFile();
-      editorState.fileHandle = handle;
+      state.fileHandle = handle;
       this.openFile(file);
       return;
     }
@@ -20,91 +19,87 @@ export const scoreCommands = {
 
   async openFile(file) {
     const data = await file.arrayBuffer();
-    editorState.tabApi?.load(new Uint8Array(data));
+    state.api.load(new Uint8Array(data));
   },
 
   newFile() {
-    editorState.fileHandle = null;
-    editorState.tabApi?.tex("\\title 'Untitled'");
+    state.fileHandle = null;
+    state.api.tex("\\title 'Untitled'");
   },
 
   async saveFile() {
-    if (!editorState.tabApi) return;
+    if (!state.api) return;
 
-    if (editorState.fileHandle) {
-      const name = editorState.fileHandle.name.toLowerCase();
+    if (state.fileHandle) {
+      const name = state.fileHandle.name.toLowerCase();
       if (!name.endsWith(".atex") && !name.endsWith(".gp")) {
         // fallback to normal export to prevent overwrite on files that are not supported (.atex or .gp)
         this.exportFile(".atex");
         return;
       }
 
-      const exporter = editorState.fileHandle.name.endsWith(".gp")
+      const exporter = state.fileHandle.name.endsWith(".gp")
         ? new alphaTab.exporter.Gp7Exporter()
         : new alphaTab.exporter.AlphaTexExporter();
 
-      const data = exporter.export(
-        editorState.tabApi.score,
-        editorState.tabApi.settings,
-      );
+      const data = exporter.export(state.api.score, state.api.settings);
 
       try {
-        const writable = await editorState.fileHandle.createWritable();
+        const writable = await state.fileHandle.createWritable();
         await writable.write(data);
         await writable.close();
         return;
       } catch (e) {
-        editorState.fileHandle = null; // Reset if write fails
+        state.fileHandle = null; // Reset if write fails
       }
     }
     this.export(".atex"); // Fallback if write fails
   },
 
   exportFile(format) {
-    if (!editorState.tabApi) return;
-    if (format === ".pdf") return editorState.tabApi.print();
+    if (!state.api) return;
+    if (format === ".pdf") return state.api.print();
 
     const exporter =
       format === ".gp"
         ? new alphaTab.exporter.Gp7Exporter()
         : new alphaTab.exporter.AlphaTexExporter();
 
-    const data = exporter.export(
-      editorState.tabApi.score,
-      editorState.tabApi.settings,
-    );
+    const data = exporter.export(state.api.score, state.api.settings);
 
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([data]));
-    a.download = (editorState.tabApi.score.title || "Untitled") + format;
+    a.download = (state.api.score.title || "Untitled") + format;
     a.click();
     URL.revokeObjectURL(a.href);
   },
 
-  updateScore(key, value) {
-    const score = editorState.tabApi?.score;
-    if (!score) return;
-    score[key] = value;
-    editorState.tabApi.render();
+  // Safe wrapper for mutating score metadata (title, artist, etc.)
+  updateScore(callback) {
+    if (!state.api?.score) return;
+    callback(state.api.score);
+
+    // Centralized side effects:
+    state.api.render();
+    state.hasUnsavedChanges = true;
   },
 
-  getScoreDetails(key) {
-    return editorState.tabApi?.score[key] || null;
+  // Safe wrapper for mutating settings (zoom, display, layout)
+  updateSettings(callback) {
+    if (!state.api?.settings) return;
+    callback(state.api.settings);
+
+    // Centralized side effects:
+    state.api.updateSettings();
+    state.api.render();
   },
 
-  zoom() {
-    if (!editorState.tabApi) return;
+  // Safe wrapper for deeply editing music elements (tracks, bars, notes)
+  updateModel(callback) {
+    if (!state.api) return;
+    callback(state.api);
 
-    // Calculate new zoom level
-    const newZoom = Math.max(
-      0.25,
-      Math.min(2.0, editorState.tabApi.settings.display.scale + delta),
-    );
-
-    // Apply to API settings
-    editorState.tabApi.settings.display.scale = newZoom;
-
-    // Update API to re-render score at new scale
-    editorState.tabApi.update();
+    state.api.render();
+    state.hasUnsavedChanges = true;
   },
 };

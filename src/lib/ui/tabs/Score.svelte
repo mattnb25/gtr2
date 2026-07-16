@@ -1,6 +1,7 @@
 <script>
   import { scoreCommands } from "$lib/commands.svelte.js";
   import PopoverBtn from "$lib/reusables/PopoverBtn.svelte";
+  import { state } from "$lib/state.svelte.js";
 
   let fileInput;
 </script>
@@ -34,64 +35,83 @@
     <label>
       Title
       <input
-        value={scoreCommands.getScoreDetails("title")}
-        onchange={(e) => scoreCommands.updateScore("title", e.target.value)}
+        value={state.api?.score.title}
+        onchange={(e) => {
+          scoreCommands.updateScore((score) => (score.title = e.target.value));
+        }}
       />
     </label>
     <label>
       Subtitle
       <input
-        value={scoreCommands.getScoreDetails("subTitle")}
-        onchange={(e) => scoreCommands.updateScore("subTitle", e.target.value)}
+        value={state.api?.score.subTitle}
+        onchange={(e) => {
+          scoreCommands.updateScore(
+            (score) => (score.subTitle = e.target.value),
+          );
+        }}
       />
     </label>
     <label>
       Artist
       <input
-        value={scoreCommands.getScoreDetails("artist")}
-        onchange={(e) => scoreCommands.updateScore("artist", e.target.value)}
+        value={state.api?.score.artist}
+        onchange={(e) => {
+          scoreCommands.updateScore((score) => (score.artist = e.target.value));
+        }}
       />
     </label>
     <label>
       Album
       <input
-        value={scoreCommands.getScoreDetails("album")}
-        onchange={(e) => scoreCommands.updateScore("album", e.target.value)}
+        value={state.api?.score.album}
+        onchange={(e) => {
+          scoreCommands.updateScore((score) => (score.album = e.target.value));
+        }}
       />
     </label>
     <label>
       Words
       <input
-        value={scoreCommands.getScoreDetails("words")}
-        onchange={(e) => scoreCommands.updateScore("words", e.target.value)}
+        value={state.api?.score.words}
+        onchange={(e) => {
+          scoreCommands.updateScore((score) => (score.words = e.target.value));
+        }}
       />
     </label>
     <label>
       Music
       <input
-        value={scoreCommands.getScoreDetails("music")}
-        onchange={(e) => scoreCommands.updateScore("music", e.target.value)}
+        value={state.api?.score.music}
+        onchange={(e) => {
+          scoreCommands.updateScore((score) => (score.music = e.target.value));
+        }}
       />
     </label>
     <label>
       Copyright
       <input
-        value={scoreCommands.getScoreDetails("copyright")}
-        onchange={(e) => scoreCommands.updateScore("copyright", e.target.value)}
+        value={state.api?.score.copyright}
+        onchange={(e) => {
+          scoreCommands.updateScore(
+            (score) => (score.copyright = e.target.value),
+          );
+        }}
       />
     </label>
   </div>
 </PopoverBtn>
 
 <PopoverBtn name="zoom">
-  <button>25%</button>
-  <button>50%</button>
-  <button>75%</button>
-  <button>100%</button>
-  <button>125%</button>
-  <button>150%</button>
-  <button>175%</button>
-  <button>200%</button>
+  <input
+    type="number"
+    value={state.api?.settings?.display?.scale}
+    onchange={(e) => {
+      scoreCommands.updateSettings(
+        (settings) => (settings.display.scale = Number(e.target.value)),
+      );
+    }}
+  />
 </PopoverBtn>
 
 <PopoverBtn name="voice">
