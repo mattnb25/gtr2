@@ -34,7 +34,16 @@
   }
 
   :global(input) {
+    width: 100%;
+    padding: 4px 8px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
     transition: all 0.15s;
+  }
+
+  :global(input:focus) {
+    outline: none;
+    border-color: #5a6ee0;
   }
 
   :global(label) {

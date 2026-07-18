@@ -1,4 +1,5 @@
 <script>
+  import Controls from "./tabs/Controls.svelte";
   import Score from "./tabs/Score.svelte";
   import Track from "./tabs/Track.svelte";
   import Bar from "./tabs/Bar.svelte";
@@ -9,7 +10,9 @@
 </script>
 
 <div id="tab-content">
-  {#if activeTab === "score"}
+  {#if activeTab === "controls"}
+    <Controls></Controls>
+  {:else if activeTab === "score"}
     <Score></Score>
   {:else if activeTab === "track"}
     <Track></Track>
@@ -23,7 +26,7 @@
 </div>
 
 <div id="tabs">
-  {#each ["score", "track", "bar", "beat", "note"] as tab}
+  {#each ["controls", "score", "track", "bar", "beat", "note"] as tab}
     <button
       class:active={activeTab === tab}
       onclick={() => {
@@ -43,6 +46,8 @@
     border-width: 1px 0;
     padding: 4px;
     gap: 4px;
+    overflow-x: auto;
+    flex-shrink: 0;
   }
 
   #tabs button {
@@ -67,9 +72,6 @@
     align-items: center;
     width: 100%;
     overflow-x: auto;
-  }
-
-  :global(#tab-content > *) {
     flex-shrink: 0;
   }
 </style>

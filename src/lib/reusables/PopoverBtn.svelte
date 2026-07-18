@@ -13,10 +13,12 @@
 <div
   id={`menu-${name}`}
   popover="auto"
-  class="popover-menu"
+  class="popover-target"
   style="position-anchor: --anchor-{name};"
 >
-  {@render children?.()}
+  <div class="popover-container">
+    {@render children?.()}
+  </div>
 </div>
 
 <style>
@@ -30,12 +32,12 @@
     border: 1px solid #5a6ee0;
   }
 
-  .popover-menu {
+  .popover-target {
     border-radius: 8px;
     border: 1px solid #e0e0e0;
     min-width: 150px;
-    margin: 0;
-    margin-bottom: 8px;
+    margin: 8px;
+    margin-left: 0;
     padding: 8px 8px;
   }
 
@@ -43,7 +45,13 @@
     position-area: top span-right;
   }
 
-  :global(.popover-menu > button) {
+  .popover-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  :global(.popover-target button) {
     border: none;
     border-radius: 4px;
     background-color: transparent;
@@ -52,8 +60,15 @@
     text-align: left;
     padding: 4px 8px;
   }
-  :global(.popover-menu > button:active) {
+  :global(.popover-target button:active) {
     color: #5a6ee0;
     background-color: #eef0fd;
+  }
+
+  :global(.popover-target > .header) {
+    padding: 4px 8px;
+    font-size: 1.2rem;
+    color: dimgray;
+    text-transform: uppercase;
   }
 </style>

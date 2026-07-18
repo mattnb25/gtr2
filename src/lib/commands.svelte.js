@@ -1,13 +1,24 @@
 import { state } from "$lib/state.svelte.js";
 import * as alphaTab from "@coderline/alphatab";
 
-const EXTENSIONS = [".gp", ".gp3", ".gp4", ".gp5", ".gpx", ".atex"];
-
 export const scoreCommands = {
   async tryFileApi(fallbackInput) {
     if ("showOpenFilePicker" in window) {
       const [handle] = await window.showOpenFilePicker({
-        types: [{ accept: { "application/octet-stream": EXTENSIONS } }],
+        types: [
+          {
+            accept: {
+              "application/octet-stream": [
+                ".gp",
+                ".gp3",
+                ".gp4",
+                ".gp5",
+                ".gpx",
+                ".atex",
+              ],
+            },
+          },
+        ],
       });
       const file = await handle.getFile();
       state.fileHandle = handle;
