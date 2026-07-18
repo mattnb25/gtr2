@@ -65,7 +65,7 @@
     background-color: #eef0fd;
   }
 
-  :global(.popover-target > .header) {
+  :global(.popover-target .header) {
     padding: 4px 8px;
     font-size: 1.2rem;
     color: dimgray;

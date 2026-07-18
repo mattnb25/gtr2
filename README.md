@@ -1,21 +1,20 @@
 inspired by: [https://bubiche.github.io/fretwork/]
-TO do:
+to do:
 
-### 🎼 Score (Global & Playback)
+### Next up (controls & Playback)
 
-- **Metadata:** Edit Title and Artist.
+- **transport:** Fret Numpad, String Navigation, Delete.
+- **Input:** Fret Numpad, String Navigation, Delete, selection w/ loops, copy/paste.
 - **Playback:** Play/Stop, Metronome (Toggle/Vol), Count-In, Tempo Scale, SoundFont Selector.
-- **View:** Zoom (0.5x–2.0x), Layout (Page/Continuous), Notation (Standard/Tab).
-- **Voices:** Presets, String Count (4–8), Custom String Pitches.
-- **loop:** loop playback.
 
 ---
 
 ### 🎸 Track (Instrumentation)
 
+- **Voices:** Presets, String Count (4–8), Custom String Pitches.
 - **Management:** Add, Remove, Rename.
 - **Mixer:** Mute, Solo, Visibility (👁).
-- **Instrument:** MIDI Program Selector.
+- **Instrument:** MIDI Program Selector. (Standard/Tab) view
 - **Tuning:** Presets, String Count (4–8), Custom String Pitches.
 - **Staves:** add linked staves
 
@@ -41,6 +40,5 @@ TO do:
 
 ### 🎵 Note (Articulations)
 
-- **Input:** Fret Numpad, String Navigation, Delete.
 - **Timbre:** Palm Mute, Ghost Note, Dead Note, Vibrato, Tapping, Accent, Pick Stroke.
 - **Transitions:** Let Ring, Legato (HO/PO), Tie, Slide, Bend, Harmonic, Grace Note.

@@ -1,6 +1,6 @@
 <script>
   import { scoreCommands } from "$lib/commands.svelte.js";
-  import PopoverBtn from "$lib/reusables/PopoverBtn.svelte";
+  import PopoverBtn from "$lib/assets/PopoverBtn.svelte";
   import { state } from "$lib/state.svelte.js";
 
   let fileInput;
