@@ -95,7 +95,6 @@ export const scoreCommands = {
     state.hasUnsavedChanges = true;
   },
 
-  // Safe wrapper for mutating settings (zoom, display, layout)
   updateSettings(callback) {
     if (!state.api?.settings) return;
     callback(state.api.settings);
@@ -104,13 +103,6 @@ export const scoreCommands = {
     state.api.updateSettings();
     state.api.render();
   },
-
-  // Safe wrapper for deeply editing music elements (tracks, bars, notes)
-  updateModel(callback) {
-    if (!state.api) return;
-    callback(state.api);
-
-    state.api.render();
-    state.hasUnsavedChanges = true;
-  },
 };
+
+export const ctrlCommands = {};
