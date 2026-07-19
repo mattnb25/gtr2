@@ -1,10 +1,10 @@
-import { state } from "$lib/state.svelte.js";
+import { project } from "$lib/state.svelte.js";
 import * as alphaTab from "@coderline/alphatab";
 
 export const scoreCommands = {
   async tryFileApi(fallbackInput) {
     if (
-      state.hasUnsavedChanges &&
+      project.hasUnsavedChanges &&
       !confirm("You have unsaved changes. Discard them and continue?")
     ) {
       return;
@@ -27,7 +27,7 @@ export const scoreCommands = {
         ],
       });
       const file = await handle.getFile();
-      state.fileHandle = handle;
+      project.fileHandle = handle;
       this.openFile(file);
       return;
     }
@@ -36,87 +36,92 @@ export const scoreCommands = {
 
   async openFile(file) {
     const data = await file.arrayBuffer();
-    state.api.load(new Uint8Array(data));
+    project.api.load(new Uint8Array(data));
   },
 
   newFile() {
     if (
-      state.hasUnsavedChanges &&
+      project.hasUnsavedChanges &&
       !confirm("Create new file and discard unsaved changes?")
     ) {
       return;
     }
-    state.fileHandle = null;
-    state.api.tex("\\title 'Untitled'");
+    project.fileHandle = null;
+    project.api.tex("\\title 'Untitled'");
   },
 
   async saveFile() {
-    if (!state.api) return;
+    if (!project.api) return;
 
-    if (state.fileHandle) {
-      const name = state.fileHandle.name.toLowerCase();
+    if (project.fileHandle) {
+      const name = project.fileHandle.name.toLowerCase();
       if (!name.endsWith(".atex") && !name.endsWith(".gp")) {
         // fallback to normal export to prevent overwrite on files that are not supported (.atex or .gp)
         this.exportFile(".atex");
         return;
       }
 
-      const exporter = state.fileHandle.name.endsWith(".gp")
+      const exporter = project.fileHandle.name.endsWith(".gp")
         ? new alphaTab.exporter.Gp7Exporter()
         : new alphaTab.exporter.AlphaTexExporter();
 
-      const data = exporter.export(state.api.score, state.api.settings);
+      const data = exporter.export(project.api.score, project.api.settings);
 
       try {
-        const writable = await state.fileHandle.createWritable();
+        const writable = await project.fileHandle.createWritable();
         await writable.write(data);
         await writable.close();
-        state.hasUnsavedChanges = false;
+        project.hasUnsavedChanges = false;
         return;
       } catch (e) {
-        state.fileHandle = null; // Reset if write fails
+        project.fileHandle = null; // Reset if write fails
       }
     }
     this.export(".atex"); // Fallback if write fails
   },
 
   exportFile(format) {
-    if (!state.api) return;
-    if (format === ".pdf") return state.api.print();
+    if (!project.api) return;
+    if (format === ".pdf") return project.api.print();
 
     const exporter =
       format === ".gp"
         ? new alphaTab.exporter.Gp7Exporter()
         : new alphaTab.exporter.AlphaTexExporter();
 
-    const data = exporter.export(state.api.score, state.api.settings);
-    state.hasUnsavedChanges = false;
+    const data = exporter.export(project.api.score, project.api.settings);
+    project.hasUnsavedChanges = false;
 
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([data]));
-    a.download = (state.api.score.title || "Untitled") + format;
+    a.download = (project.api.score.title || "Untitled") + format;
     a.click();
     URL.revokeObjectURL(a.href);
   },
 
   // Safe wrapper for mutating score metadata (title, artist, etc.)
   updateScore(callback) {
-    if (!state.api?.score) return;
-    callback(state.api.score);
+    if (!project.api?.score) return;
+    callback(project.api.score);
 
     // Centralized side effects:
-    state.api.render();
-    state.hasUnsavedChanges = true;
+    project.api.render();
+    project.hasUnsavedChanges = true;
   },
 
   updateSettings(callback) {
-    if (!state.api?.settings) return;
-    callback(state.api.settings);
+    if (!project.api?.settings) return;
+    callback(project.api.settings);
 
     // Centralized side effects:
-    state.api.updateSettings();
-    state.api.render();
+    project.api.updateSettings();
+    project.api.render();
   },
 };
 
-export const ctrlCommands = {};
+export const ctrlCommands = {
+  togglePlayback() {
+    if (!project.api) return;
+    project.api.playPause();
+  },
+};

@@ -2,7 +2,7 @@
     import { scoreCommands } from "$lib/commands.svelte.js";
     import PopoverBtn from "$lib/assets/PopoverBtn.svelte";
     import NumInput from "$lib/assets/numInput.svelte";
-    import { state } from "$lib/state.svelte.js";
+    import { project } from "$lib/state.svelte.js";
 
     let fileInput;
 </script>
@@ -36,7 +36,7 @@
     <label>
         Title
         <input
-            value={state.api?.score.title}
+            value={project.api?.score.title}
             onchange={(e) => {
                 scoreCommands.updateScore(
                     (score) => (score.title = e.target.value),
@@ -47,7 +47,7 @@
     <label>
         Subtitle
         <input
-            value={state.api?.score.subTitle}
+            value={project.api?.score.subTitle}
             onchange={(e) => {
                 scoreCommands.updateScore(
                     (score) => (score.subTitle = e.target.value),
@@ -58,7 +58,7 @@
     <label>
         Artist
         <input
-            value={state.api?.score.artist}
+            value={project.api?.score.artist}
             onchange={(e) => {
                 scoreCommands.updateScore(
                     (score) => (score.artist = e.target.value),
@@ -69,7 +69,7 @@
     <label>
         Album
         <input
-            value={state.api?.score.album}
+            value={project.api?.score.album}
             onchange={(e) => {
                 scoreCommands.updateScore(
                     (score) => (score.album = e.target.value),
@@ -80,7 +80,7 @@
     <label>
         Words
         <input
-            value={state.api?.score.words}
+            value={project.api?.score.words}
             onchange={(e) => {
                 scoreCommands.updateScore(
                     (score) => (score.words = e.target.value),
@@ -91,7 +91,7 @@
     <label>
         Music
         <input
-            value={state.api?.score.music}
+            value={project.api?.score.music}
             onchange={(e) => {
                 scoreCommands.updateScore(
                     (score) => (score.music = e.target.value),
@@ -102,7 +102,7 @@
     <label>
         Copyright
         <input
-            value={state.api?.score.copyright}
+            value={project.api?.score.copyright}
             onchange={(e) => {
                 scoreCommands.updateScore(
                     (score) => (score.copyright = e.target.value),
@@ -115,7 +115,7 @@
 <PopoverBtn name="zoom">
     <NumInput
         step="0.1"
-        value={state.api?.settings?.display?.scale}
+        value={project.api?.settings?.display?.scale}
         callback={(value) => {
             scoreCommands.updateSettings(
                 (settings) => (settings.display.scale = value),
