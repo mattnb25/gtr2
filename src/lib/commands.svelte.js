@@ -3,6 +3,12 @@ import * as alphaTab from "@coderline/alphatab";
 
 export const scoreCommands = {
   async tryFileApi(fallbackInput) {
+    if (
+      state.hasUnsavedChanges &&
+      !confirm("You have unsaved changes. Discard them and continue?")
+    ) {
+      return;
+    }
     if ("showOpenFilePicker" in window) {
       const [handle] = await window.showOpenFilePicker({
         types: [
@@ -34,6 +40,12 @@ export const scoreCommands = {
   },
 
   newFile() {
+    if (
+      state.hasUnsavedChanges &&
+      !confirm("Create new file and discard unsaved changes?")
+    ) {
+      return;
+    }
     state.fileHandle = null;
     state.api.tex("\\title 'Untitled'");
   },
@@ -59,6 +71,7 @@ export const scoreCommands = {
         const writable = await state.fileHandle.createWritable();
         await writable.write(data);
         await writable.close();
+        state.hasUnsavedChanges = false;
         return;
       } catch (e) {
         state.fileHandle = null; // Reset if write fails
@@ -77,6 +90,7 @@ export const scoreCommands = {
         : new alphaTab.exporter.AlphaTexExporter();
 
     const data = exporter.export(state.api.score, state.api.settings);
+    state.hasUnsavedChanges = false;
 
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([data]));
