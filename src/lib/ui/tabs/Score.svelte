@@ -1,6 +1,7 @@
 <script>
   import { scoreCommands } from "$lib/commands.svelte.js";
   import PopoverBtn from "$lib/assets/PopoverBtn.svelte";
+  import NumInput from "$lib/assets/numInput.svelte";
   import { state } from "$lib/state.svelte.js";
 
   let fileInput;
@@ -99,15 +100,9 @@
 </PopoverBtn>
 
 <PopoverBtn name="zoom">
-  <button>-</button>
-  <input
-    type="number"
-    value={state.api?.settings?.display?.scale}
-    onchange={(e) => {
-      scoreCommands.updateSettings(
-        (settings) => (settings.display.scale = Number(e.target.value)),
-      );
-    }}
-  />
-  <button>-</button>
+  <NumInput step="0.1" value={state.api?.settings?.display?.scale} callback={(value) => {
+    scoreCommands.updateSettings(
+      (settings) => (settings.display.scale = value),
+    );
+  }} />
 </PopoverBtn>
