@@ -1,11 +1,18 @@
 inspired by: [https://bubiche.github.io/fretwork/]
 to do:
 
-### Next up (controls & Playback)
+### next up
 
+- fix input value reactivity when a new file is opened.
+- fix broken play button label based on state
+- remove file picker externsions like .exe and.txt
+- implement view to show standard notation
+
+### (controls & Playback)
+
+- **Playback:** Play/Stop, Metronome (Toggle/Vol), Count-In, Tempo Scale, better SoundFont.
 - **transport:** Fret Numpad, String Navigation, Delete.
 - **Input:** Fret Numpad, String Navigation, Delete, selection w/ loops, copy/paste.
-- **Playback:** Play/Stop, Metronome (Toggle/Vol), Count-In, Tempo Scale, SoundFont Selector.
 
 ---
 

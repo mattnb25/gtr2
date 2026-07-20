@@ -1,14 +1,10 @@
 <script>
-    import { ctrlCommands } from "$lib/commands.svelte.js";
-    import { project } from "$lib/state.svelte.js";
-
-    let playbackBtnText = $state("play");
-
-    project.api.playerStateChanged.on((e) => {
-        playbackBtnText = e.state === 1 ? "pause" : "play";
-    });
+  import { project } from "$lib/project.svelte.js";
+  import PopoverBtn from "$lib/assets/PopoverBtn.svelte";
 </script>
 
-<button onclick={() => ctrlCommands.togglePlayback()}>
-    {playbackBtnText}
+<button onclick={() => project.togglePlayback()}>
+  {project.isPlaying ? "pause" : "play"}
 </button>
+
+<PopoverBtn name="playback options"></PopoverBtn>
