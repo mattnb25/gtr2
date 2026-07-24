@@ -33,7 +33,7 @@
   <label>
     Title
     <input
-      value={project.api?.score.title}
+      value={project.score?.title}
       onchange={(e) => {
         project.updateScore((score) => (score.title = e.target.value));
       }}
@@ -42,7 +42,7 @@
   <label>
     Subtitle
     <input
-      value={project.api?.score.subTitle}
+      value={project.score?.subTitle}
       onchange={(e) => {
         project.updateScore((score) => (score.subTitle = e.target.value));
       }}
@@ -51,7 +51,7 @@
   <label>
     Artist
     <input
-      value={project.api?.score.artist}
+      value={project.score?.artist}
       onchange={(e) => {
         project.updateScore((score) => (score.artist = e.target.value));
       }}
@@ -60,7 +60,7 @@
   <label>
     Album
     <input
-      value={project.api?.score.album}
+      value={project.score?.album}
       onchange={(e) => {
         project.updateScore((score) => (score.album = e.target.value));
       }}
@@ -69,7 +69,7 @@
   <label>
     Words
     <input
-      value={project.api?.score.words}
+      value={project.score?.words}
       onchange={(e) => {
         project.updateScore((score) => (score.words = e.target.value));
       }}
@@ -78,7 +78,7 @@
   <label>
     Music
     <input
-      value={project.api?.score.music}
+      value={project.score?.music}
       onchange={(e) => {
         project.updateScore((score) => (score.music = e.target.value));
       }}
@@ -87,7 +87,7 @@
   <label>
     Copyright
     <input
-      value={project.api?.score.copyright}
+      value={project.score?.copyright}
       onchange={(e) => {
         project.updateScore((score) => (score.copyright = e.target.value));
       }}
@@ -99,7 +99,7 @@
   <div class="header">Zoom</div>
   <NumInput
     step="0.1"
-    value={project.api?.settings?.display?.scale}
+    value={project.settings?.display.scale}
     callback={(value) => {
       project.updateSettings((settings) => (settings.display.scale = value));
     }}

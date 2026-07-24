@@ -1,24 +1,57 @@
 import * as alphaTab from "@coderline/alphatab";
 
 class ProjectManager {
+  // always mutate the api directly
   api = $state(null);
+
+  // reactive states for the toolbar to read data from
+  score = $state(null);
+  tracks = $state([]);
+  activeBeat = $state(null);
+  settings = $state(null);
+
   fileHandle = $state(null);
   hasUnsavedChanges = $state(false);
   isPlaying = $state(false);
 
-  constructor() {
-    this.api?.playerStateChanged.on((e) => (this.isPlaying = e.state === 1));
-  }
+  constructor() {}
 
   initApi(canvasEl, settings) {
     if (!canvasEl) return;
     this.destroyApi();
     this.api = new alphaTab.AlphaTabApi(canvasEl, settings);
+
+    // 1. Full File/Score Load Event
+    this.api.scoreLoaded.on((score) => {
+      this.score = score;
+      this.tracks = score?.tracks || [];
+      this.activeBeat = null;
+    });
+
+    // 2. Cursor & Beat Click Tracking (For Beat, Bar, and Note tabs)
+    this.api.activeBeatsChanged.on((args) => {
+      this.activeBeat = args.activeBeats?.[0] || null;
+    });
+
+    // 3. Settings Changes (For score tab)
+    this.api.settingsUpdated.on(() => {
+      this.settings = this.api.settings;
+    });
+
+    // 4. Player State
+    this.api.playerStateChanged.on((e) => {
+      this.isPlaying = e.state === 1;
+    });
   }
 
   destroyApi() {
     this.api?.destroy();
     this.api = null;
+    this.score = null;
+    this.tracks = [];
+    this.activeBeat = null;
+    this.settings = null;
+    this.isPlaying = false;
   }
 
   // Helper to fetch the correct exporter class dynamically
@@ -36,30 +69,35 @@ class ProjectManager {
         const [handle] = await window.showOpenFilePicker({
           types: [
             {
-              description: "Guitar Pro",
+              description: "Guitar Pro Files",
               accept: {
                 // prettier-ignore
-                "application/octet-stream": [".gp",".gp3",".gp4", ".gp5", ".gpx"],
+                "application/x-guitar-pro": [".gp", ".gp3", ".gp4", ".gp5", ".gpx"],
               },
             },
-            { description: "AlphaTex", accept: { "text/plain": [".atex"] } },
+            {
+              description: "AlphaTex Files",
+              accept: {
+                "text/x-alphatex": [".atex"],
+              },
+            },
           ],
+          multiple: false,
         });
         this.fileHandle = handle;
-        this.api?.load(
-          new Uint8Array(await (await handle.getFile()).arrayBuffer()),
-        );
+        const file = await handle.getFile();
+        this.api?.load(new Uint8Array(await file.arrayBuffer()));
         return;
       } catch {
-        return;
-      } // Handles user cancel
+        return; // Handles user cancel
+      }
     }
     fallbackInput.click();
   }
 
   async openFile(file) {
     const data = await file.arrayBuffer();
-    project.api.load(new Uint8Array(data));
+    this.api.load(new Uint8Array(data));
   }
 
   newFile() {
@@ -107,10 +145,21 @@ class ProjectManager {
     URL.revokeObjectURL(a.href);
   }
 
+  // --- Helper Mutators to Guarantee Reactivity ---
+
   updateScore(callback) {
     if (!this.api?.score) return;
     callback(this.api.score);
     this.api.render();
+    this.score = this.api.score; // Notify Svelte
+    this.hasUnsavedChanges = true;
+  }
+
+  updateBeat(callback) {
+    if (!this.activeBeat) return;
+    callback(this.activeBeat);
+    this.api.render();
+    this.activeBeat = this.activeBeat; // Notify Svelte
     this.hasUnsavedChanges = true;
   }
 
@@ -119,6 +168,7 @@ class ProjectManager {
     callback(this.api.settings);
     this.api.updateSettings();
     this.api.render();
+    this.settings = this.api.settings; // Notify Svelte
   }
 
   togglePlayback = () => this.api?.playPause();

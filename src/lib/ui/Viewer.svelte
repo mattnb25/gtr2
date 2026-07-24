@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { project } from "$lib/project.svelte.js";
 
-  let canvasEl;
+  let canvasEl = $state(null);
 
   let apiSettings = {
     enableLazyLoading: true,
@@ -17,7 +17,6 @@
       enableCursor: true,
       enableElementHighlighting: true,
       enableUserInteraction: true,
-      scrollElement: canvasEl,
     },
     display: {
       padding: [18, 28],
@@ -25,6 +24,7 @@
   };
 
   onMount(() => {
+    apiSettings.player.scrollElement = canvasEl;
     project.initApi(canvasEl, apiSettings);
     project.newFile();
     return () => project.destroyApi();

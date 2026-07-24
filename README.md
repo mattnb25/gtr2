@@ -3,10 +3,8 @@ to do:
 
 ### next up
 
-- fix input value reactivity when a new file is opened.
-- fix broken play button label based on state
-- remove file picker externsions like .exe and.txt
-- implement view to show standard notation
+- implement view to show tab only notation
+- clean up reactive state management using best practices
 
 ### (controls & Playback)
 
