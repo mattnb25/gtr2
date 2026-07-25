@@ -1,108 +1,67 @@
 <script>
   import PopoverBtn from "$lib/assets/PopoverBtn.svelte";
   import NumInput from "$lib/assets/numInput.svelte";
-  import { project } from "$lib/project.svelte.js";
+  import { project } from "$lib/core/index.svelte.js";
 
   let fileInput;
+
+  async function handleOpen() {
+    if (!(await project.io.tryNativeFilePicker())) fileInput.click();
+  }
+
+  const scoreFields = [
+    "title",
+    "subTitle",
+    "artist",
+    "album",
+    "words",
+    "music",
+    "copyright",
+  ];
 </script>
 
 <PopoverBtn name="open">
   <div class="header">Guitar Pro/AlphaTex</div>
-  <button onclick={() => project.tryFileApi(fileInput)}>Open</button>
-  <button onclick={() => project.newFile()}>New</button>
+  <button onclick={handleOpen}>Open</button>
+  <button onclick={() => project.io.newFile()}>New</button>
 </PopoverBtn>
 
 <input
   type="file"
   bind:this={fileInput}
   onchange={(e) => {
-    if (e.target.files[0]) project.openFile(e.target.files[0]);
+    if (e.target.files[0]) project.io.loadFileData(e.target.files[0]);
+    e.target.value = "";
   }}
   accept=".gp,.gp3,.gp4,.gp5,.gpx,.atex"
   style="display: none;"
 />
 
 <PopoverBtn name="save">
-  <button onclick={() => project.saveFile()}>Save changes</button>
-  <button onclick={() => project.exportFile(".pdf")}>Print</button>
-  <button onclick={() => project.exportFile(".gp")}>Export .gp</button>
-  <button onclick={() => project.exportFile(".atex")}>Export .atex</button>
+  <button onclick={() => project.io.saveFile()}>Save changes</button>
+  <button onclick={() => project.io.exportFile(".pdf")}>Print</button>
+  <button onclick={() => project.io.exportFile(".gp")}>Export .gp</button>
+  <button onclick={() => project.io.exportFile(".atex")}>Export .atex</button>
 </PopoverBtn>
 
 <PopoverBtn name="details">
-  <label>
-    Title
-    <input
-      value={project.score?.title}
-      onchange={(e) => {
-        project.updateScore((score) => (score.title = e.target.value));
-      }}
-    />
-  </label>
-  <label>
-    Subtitle
-    <input
-      value={project.score?.subTitle}
-      onchange={(e) => {
-        project.updateScore((score) => (score.subTitle = e.target.value));
-      }}
-    />
-  </label>
-  <label>
-    Artist
-    <input
-      value={project.score?.artist}
-      onchange={(e) => {
-        project.updateScore((score) => (score.artist = e.target.value));
-      }}
-    />
-  </label>
-  <label>
-    Album
-    <input
-      value={project.score?.album}
-      onchange={(e) => {
-        project.updateScore((score) => (score.album = e.target.value));
-      }}
-    />
-  </label>
-  <label>
-    Words
-    <input
-      value={project.score?.words}
-      onchange={(e) => {
-        project.updateScore((score) => (score.words = e.target.value));
-      }}
-    />
-  </label>
-  <label>
-    Music
-    <input
-      value={project.score?.music}
-      onchange={(e) => {
-        project.updateScore((score) => (score.music = e.target.value));
-      }}
-    />
-  </label>
-  <label>
-    Copyright
-    <input
-      value={project.score?.copyright}
-      onchange={(e) => {
-        project.updateScore((score) => (score.copyright = e.target.value));
-      }}
-    />
-  </label>
+  {#each scoreFields as field}
+    <label>
+      {field.charAt(0).toUpperCase() + field.slice(1)}
+      <input
+        value={project.editor.score?.[field]}
+        onchange={(e) => project.editor.updateScoreField(field, e.target.value)}
+      />
+    </label>
+  {/each}
 </PopoverBtn>
 
 <PopoverBtn name="view">
   <div class="header">Zoom</div>
   <NumInput
     step="0.1"
-    value={project.settings?.display.scale}
-    callback={(value) => {
-      project.updateSettings((settings) => (settings.display.scale = value));
-    }}
+    value={project.editor.settings?.display.scale}
+    callback={(value) =>
+      project.editor.updateSettingsField("display", "scale", value)}
   />
-  <div class="header">View</div>
 </PopoverBtn>

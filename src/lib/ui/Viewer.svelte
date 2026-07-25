@@ -1,6 +1,6 @@
 <script>
   import { onMount } from "svelte";
-  import { project } from "$lib/project.svelte.js";
+  import { project } from "$lib/core/index.svelte.js";
 
   let canvasEl = $state(null);
 
@@ -25,9 +25,9 @@
 
   onMount(() => {
     apiSettings.player.scrollElement = canvasEl;
-    project.initApi(canvasEl, apiSettings);
-    project.newFile();
-    return () => project.destroyApi();
+    project.init(canvasEl, apiSettings);
+    project.io.newFile();
+    return () => project.engine.destroy();
   });
 </script>
 

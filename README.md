@@ -1,12 +1,9 @@
 inspired by: [https://bubiche.github.io/fretwork/]
 to do:
 
-### next up
+### (controls & Playback)
 
 - implement view to show tab only notation
-- clean up reactive state management using best practices
-
-### (controls & Playback)
 
 - **Playback:** Play/Stop, Metronome (Toggle/Vol), Count-In, Tempo Scale, better SoundFont.
 - **transport:** Fret Numpad, String Navigation, Delete.
