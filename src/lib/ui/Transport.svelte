@@ -5,97 +5,126 @@
 
     let pb = $derived(project.playback);
 
+    let isHovering = $state(false);
+    let hoverRatio = $state(0);
+
     function formatTime(ms) {
         if (!ms || isNaN(ms) || ms < 0) return "00:00";
-        const totalSeconds = Math.floor(ms / 1000);
-        const minutes = Math.floor(totalSeconds / 60);
-        const seconds = totalSeconds % 60;
-        return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+        const totalSec = Math.floor(ms / 1000);
+        const m = String(Math.floor(totalSec / 60)).padStart(2, "0");
+        const s = String(totalSec % 60).padStart(2, "0");
+        return `${m}:${s}`;
     }
 
-    function handleScrubInput(e) {
-        const val = Number(e.target.value);
-        pb.isSeeking = true;
-        pb.currentTime = val;
-    }
+    // Active time: hovered time on hover, current time when scrubbing or playing
+    let activeTime = $derived(
+        isHovering && !pb.isSeeking
+            ? hoverRatio * (pb.endTime || 0)
+            : pb.currentTime
+    );
 
-    function handleScrubChange(e) {
-        const val = Number(e.target.value);
-        pb.seek(val);
-        pb.isSeeking = false;
+    // Active position % for tooltip location
+    let activePercent = $derived(
+        isHovering && !pb.isSeeking
+            ? hoverRatio * 100
+            : pb.endTime ? (pb.currentTime / pb.endTime) * 100 : 0
+    );
+
+    let bar = $derived(
+        project.engine.api?.tickCache?.findMasterBar?.(activeTime)?.number ??
+        Math.floor((activeTime / (pb.endTime || 1)) * (project.editor.score?.masterBars?.length || 1)) + 1
+    );
+
+    function handlePointerMove(e) {
+        const rect = e.currentTarget.getBoundingClientRect();
+        if (rect.width > 0) {
+            hoverRatio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        }
     }
 </script>
 
 <div class="transport-bar">
-    <div class="left-controls">
-        <SplitPopoverBtn
-            name="playback-options"
-            label={pb.isPlaying ? "Pause" : "Play"}
-            onclick={() => pb.toggle()}
-        >
-            <div class="header">Playback Options</div>
-
-            <div class="checkbox-group">
-                <label class="checkbox-label">
-                    <input
-                        type="checkbox"
-                        checked={pb.isMetronomeActive}
-                        onchange={(e) => pb.toggleMetronome(e.target.checked)}
-                    />
-                    Metronome
-                </label>
-
-                <label class="checkbox-label">
-                    <input
-                        type="checkbox"
-                        checked={pb.isCountInActive}
-                        onchange={(e) => pb.toggleCountIn(e.target.checked)}
-                    />
-                    Count-In
-                </label>
-            </div>
-
-            <hr class="divider" />
-
-            <div class="option-section">
-                <span class="option-label">Volume (%)</span>
-                <NumInput
-                    min={0}
-                    max={100}
-                    step={5}
-                    value={Math.round(pb.metronomeVol * 100)}
-                    callback={(val) => pb.setMetronomeVol(val / 100)}
+    <SplitPopoverBtn
+        name="playback-options"
+        label={pb.isPlaying ? "Pause" : "Play"}
+        onclick={() => pb.toggle()}
+    >
+        <div class="header">Playback</div>
+        <div class="checkbox-group">
+            <label class="checkbox-label">
+                <input
+                    type="checkbox"
+                    checked={pb.isMetronomeActive}
+                    onchange={(e) => pb.toggleMetronome(e.target.checked)}
                 />
-            </div>
+                Metronome
+            </label>
 
-            <hr class="divider" />
-
-            <div class="option-section">
-                <span class="option-label">Tempo Scale (%)</span>
-                <NumInput
-                    min={25}
-                    max={200}
-                    step={5}
-                    value={Math.round(pb.playbackSpeed * 100)}
-                    callback={(val) => pb.setPlaybackSpeed(val / 100)}
+            <label class="checkbox-label">
+                <input
+                    type="checkbox"
+                    checked={pb.isCountInActive}
+                    onchange={(e) => pb.toggleCountIn(e.target.checked)}
                 />
-            </div>
-        </SplitPopoverBtn>
-    </div>
+                Count-In
+            </label>
+        </div>
 
-    <!-- Scrubbable transport slider & time display -->
-    <div class="scrubber-container">
-        <span class="time-display">{formatTime(pb.currentTime)}</span>
+        <hr class="divider" />
+
+        <div class="header">Tempo Scale (%)</div>
+        <div class="option-section">
+            <NumInput
+                min={25}
+                max={200}
+                step={5}
+                value={Math.round(pb.playbackSpeed * 100)}
+                callback={(val) => pb.setPlaybackSpeed(val / 100)}
+            />
+        </div>
+
+        <hr class="divider" />
+
+        <div class="header">Volume (%)</div>
+        <div class="option-section">
+            <NumInput
+                min={0}
+                max={100}
+                step={5}
+                value={Math.round(pb.metronomeVol * 100)}
+                callback={(val) => pb.setMetronomeVol(val / 100)}
+            />
+        </div>
+    </SplitPopoverBtn>
+
+    <!-- Scrubber transport slider with desktop hover & mobile touch tooltip -->
+    <div
+        class="scrubber-container"
+        class:show-tooltip={isHovering || pb.isSeeking}
+        onpointerenter={() => (isHovering = true)}
+        onpointerleave={() => (isHovering = false)}
+        onpointermove={handlePointerMove}
+        ontouchstart={() => (isHovering = true)}
+        ontouchend={() => (isHovering = false)}
+    >
+        <div class="tooltip" style="left: clamp(36px, {activePercent}%, calc(100% - 36px));">
+            Bar {bar} &bull; {formatTime(activeTime)}
+        </div>
         <input
             type="range"
             class="scrubber-slider"
             min="0"
             max={pb.endTime || 100}
             value={pb.currentTime}
-            oninput={handleScrubInput}
-            onchange={handleScrubChange}
+            oninput={(e) => {
+                pb.isSeeking = true;
+                pb.currentTime = Number(e.target.value);
+            }}
+            onchange={(e) => {
+                pb.seek(Number(e.target.value));
+                pb.isSeeking = false;
+            }}
         />
-        <span class="time-display">{formatTime(pb.endTime)}</span>
     </div>
 </div>
 
@@ -108,32 +137,56 @@
         background: #ffffff;
         border-top: 1px solid #e0e0e0;
         flex-shrink: 0;
-    }
-
-    .left-controls {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        flex-shrink: 0;
+        overflow: visible;
     }
 
     .scrubber-container {
+        position: relative;
         display: flex;
         align-items: center;
-        gap: 10px;
         flex-grow: 1;
+        min-height: 36px;
     }
 
-    .time-display {
-        font-family: monospace;
-        font-size: 1.2rem;
-        color: #4b5563;
-        min-width: 45px;
-        text-align: center;
+    .tooltip {
+        position: absolute;
+        bottom: calc(100% + 2px);
+        transform: translateX(-50%);
+        padding: 4px 10px;
+        background: #1e293b;
+        color: #ffffff;
+        font-size: 0.85rem;
+        font-weight: 600;
+        border-radius: 6px;
+        white-space: nowrap;
+        pointer-events: none;
+        z-index: 100;
+        opacity: 0;
+        transition: opacity 0.15s ease-in-out;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Show tooltip on hover, touch, seeking, or focus */
+    .scrubber-container:hover .tooltip,
+    .scrubber-container:focus-within .tooltip,
+    .scrubber-container:active .tooltip,
+    .scrubber-container.show-tooltip .tooltip {
+        opacity: 1;
+    }
+
+    .tooltip::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border-width: 5px;
+        border-style: solid;
+        border-color: #1e293b transparent transparent transparent;
     }
 
     .scrubber-slider {
-        flex-grow: 1;
+        width: 100%;
         accent-color: #5a6ee0;
         cursor: pointer;
         height: 6px;
@@ -170,12 +223,6 @@
         display: flex;
         flex-direction: column;
         gap: 6px;
-    }
-
-    .option-label {
-        font-weight: 600;
-        font-size: 1.1rem;
-        color: #374151;
     }
 
     .divider {
