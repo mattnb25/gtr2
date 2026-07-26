@@ -53,4 +53,19 @@
     color: dimgray;
     text-transform: uppercase;
   }
+
+  /* AlphaTab Playback Cursor & Playhead */
+  :global(.at-cursor-bar) {
+    display: none !important;
+  }
+  :global(.at-cursor-beat) {
+    background: #4f46e5 !important;
+    width: 3px !important;
+    border-radius: 1.5px !important;
+    z-index: 1001 !important;
+    box-shadow: 0 0 8px rgba(79, 70, 229, 0.8) !important;
+    pointer-events: none !important;
+    opacity: 1 !important;
+    display: block !important;
+  }
 </style>

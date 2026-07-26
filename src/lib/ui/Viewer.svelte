@@ -15,8 +15,10 @@
       soundFont: "/soundfont/sonivox.sf3",
       enablePlayer: true,
       enableCursor: true,
+      enableAnimatedBeatCursor: true,
       enableElementHighlighting: true,
       enableUserInteraction: true,
+      scrollMode: "offscreen",
     },
     display: {
       padding: [18, 28],
@@ -36,6 +38,9 @@
 <style>
   .canvas {
     flex-grow: 1;
+    height: 0;
+    overflow-y: auto;
     overflow-x: hidden;
+    position: relative;
   }
 </style>
