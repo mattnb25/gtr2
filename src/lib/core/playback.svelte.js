@@ -1,52 +1,37 @@
 export class Playback {
   #engine;
 
+  // State
   isPlaying = $state(false);
-
-  // Metronome state (Toggle & Vol: 0.0 - 1.0)
+  isSeeking = $state(false);
   isMetronomeActive = $state(false);
-  metronomeVolume = $state(1.0);
-
-  // Count-In state (Toggle & Vol: 0.0 - 1.0)
   isCountInActive = $state(false);
-  countInVolume = $state(1.0);
-
-  // Tempo Scale (0.25 - 2.0, default 1.0 = 100%)
+  metronomeVol = $state(1.0);
   playbackSpeed = $state(1.0);
 
-  // Time & Position tracking (in ms)
+  // Position tracking (in ms)
   currentTime = $state(0);
   endTime = $state(0);
-  isSeeking = $state(false);
 
   constructor(engine) {
     this.#engine = engine;
   }
 
   initListeners() {
-    const api = this.#engine.api;
-    if (!api) return;
+    if (!this.#engine.api) return;
 
-    // Synchronize initial API settings
-    api.metronomeVolume = this.isMetronomeActive ? this.metronomeVolume : 0;
-    api.countInVolume = this.isCountInActive ? this.countInVolume : 0;
-    api.playbackSpeed = this.playbackSpeed;
-
-    api.playerStateChanged.on((e) => {
-      // 0 = Stopped, 1 = Playing, 2 = Paused
+    this.#engine.api.playerStateChanged.on((e) => {
       this.isPlaying = e.state === 1;
       this.#engine.ping();
     });
 
-    api.playerPositionChanged.on((e) => {
-      if (!this.isSeeking) {
-        this.currentTime = e.currentTime;
-      }
+    this.#engine.api.playerPositionChanged.on((e) => {
+      if (!this.isSeeking) this.currentTime = e.currentTime;
       this.endTime = e.endTime;
       this.#engine.ping();
     });
 
-    api.playerFinished?.on(() => {
+    this.#engine.api.playerFinished?.on(() => {
       this.isPlaying = false;
       this.currentTime = 0;
       this.#engine.ping();
@@ -54,62 +39,39 @@ export class Playback {
   }
 
   toggle() {
-    const api = this.#engine.api;
-    if (!api || !api.isReadyForPlayback) return;
-    api.playPause();
+    if (this.#engine.api?.isReadyForPlayback) this.#engine.api.playPause();
   }
 
-  stop() {
-    const api = this.#engine.api;
-    if (!api || !api.isReadyForPlayback) return;
-    api.stop();
-    this.isPlaying = false;
-    this.currentTime = 0;
+  syncMetronomeVolume() {
+    if (!this.#engine.api) return;
+    this.#engine.api.metronomeVolume = this.isMetronomeActive
+      ? this.metronomeVol
+      : 0;
+    this.#engine.api.countInVolume = this.isCountInActive
+      ? this.metronomeVol
+      : 0;
   }
 
-  // Metronome controls
-  toggleMetronome() {
-    this.isMetronomeActive = !this.isMetronomeActive;
-    if (this.#engine.api) {
-      this.#engine.api.metronomeVolume = this.isMetronomeActive
-        ? this.metronomeVolume
-        : 0;
-    }
+  toggleMetronome(active) {
+    this.isMetronomeActive = active ?? !this.isMetronomeActive;
+    this.syncMetronomeVolume();
   }
 
-  setMetronomeVolume(vol) {
-    this.metronomeVolume = vol;
-    if (this.isMetronomeActive && this.#engine.api) {
-      this.#engine.api.metronomeVolume = vol;
-    }
+  toggleCountIn(active) {
+    this.isCountInActive = active ?? !this.isCountInActive;
+    this.syncMetronomeVolume();
   }
 
-  // Count-In controls
-  toggleCountIn() {
-    this.isCountInActive = !this.isCountInActive;
-    if (this.#engine.api) {
-      this.#engine.api.countInVolume = this.isCountInActive
-        ? this.countInVolume
-        : 0;
-    }
+  setMetronomeVol(vol) {
+    this.metronomeVol = vol;
+    this.syncMetronomeVolume();
   }
 
-  setCountInVolume(vol) {
-    this.countInVolume = vol;
-    if (this.isCountInActive && this.#engine.api) {
-      this.#engine.api.countInVolume = vol;
-    }
-  }
-
-  // Tempo Scale / Playback speed
   setPlaybackSpeed(speed) {
     this.playbackSpeed = speed;
-    if (this.#engine.api) {
-      this.#engine.api.playbackSpeed = speed;
-    }
+    if (this.#engine.api) this.#engine.api.playbackSpeed = speed;
   }
 
-  // Scrubbable transport position seek
   seek(timeMs) {
     this.currentTime = timeMs;
     if (this.#engine.api) {

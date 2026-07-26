@@ -58,7 +58,7 @@
 </PopoverBtn>
 
 <PopoverBtn name="view">
-    <div class="header">Zoom</div>
+    <div class="header">Zoom %</div>
     <NumInput
         min={50}
         max={200}
