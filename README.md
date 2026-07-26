@@ -1,11 +1,12 @@
 inspired by: [https://bubiche.github.io/fretwork/]
 to do:
 
-### (controls & Playback)
+### (Next up)
 
 - implement view to show tab only notation
+- undo/redo
 
-- **Playback:** Play/Stop, Metronome (Toggle/Vol), Count-In, Tempo Scale, better SoundFont.
+- **Playback:** transport.svelte and playback.svelte.js refactor + better SoundFont.
 
 - **Input:** Fret Numpad, String Navigation, Delete, selection w/ loops, copy/paste.
 

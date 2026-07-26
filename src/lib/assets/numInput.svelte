@@ -1,34 +1,44 @@
 <script>
-    let { step = "0.1", value = $bindable(0), callback } = $props();
+    let {
+        min = 0,
+        max = 100,
+        step = 1,
+        value = $bindable(0),
+        callback,
+    } = $props();
     let inputEl = $state();
 
     function syncValue() {
-        value = inputEl.valueAsNumber;
+        let newVal = parseInt(inputEl.value, 10);
+        // if (isNaN(newVal) || newVal === undefined) newVal = 0;
+        // if (newVal < min) newVal = Number(min);
+        // if (newVal > max) newVal = Number(max);
+        value = newVal;
         if (callback) callback(value);
     }
 </script>
 
 <div class="component-container">
     <button
+        type="button"
         onclick={() => {
             inputEl.stepDown();
             syncValue();
         }}>-</button
     >
 
-    <div class="input-container">
-        <input
-            bind:this={inputEl}
-            type="number"
-            min="0"
-            {step}
-            {value}
-            onchange={syncValue}
-        />
-        <div class="formatted-display">{Math.round(value * 100)}%</div>
-    </div>
+    <input
+        bind:this={inputEl}
+        type="number"
+        {min}
+        {max}
+        {step}
+        {value}
+        onchange={syncValue}
+    />
 
     <button
+        type="button"
         onclick={() => {
             inputEl.stepUp();
             syncValue();
@@ -39,40 +49,38 @@
 <style>
     .component-container {
         display: flex;
-        align-items: center;
         border: 1px solid #e0e0e0;
         border-radius: 8px;
     }
 
-    .component-container * {
-        text-align: center;
+    .component-container button {
+        padding: 4px 10px;
+        font-size: 1.2rem;
+        background: transparent;
+        border: none;
+        cursor: pointer;
     }
 
-    .input-container {
-        display: inline-grid;
+    .component-container button:hover {
+        background: #f0f0f0;
+    }
+
+    input {
+        border-radius: 0;
+        border: none;
         border-left: 1px solid #e0e0e0;
         border-right: 1px solid #e0e0e0;
+        width: stretch;
+        font-size: 1rem;
+        text-align: center;
+        outline: none;
+        -moz-appearance: textfield;
+        appearance: textfield;
     }
 
-    .input-container input,
-    .formatted-display {
-        grid-area: 1 / 1;
-        padding: 4px 8px;
-        font-size: 1.2rem;
-        border-radius: 0;
-    }
-
-    .input-container input {
-        opacity: 0;
-    }
-
-    .input-container input:focus {
-        z-index: 2;
-        opacity: 1;
-        background: white;
-    }
-
-    .formatted-display {
-        pointer-events: none;
+    input::-webkit-outer-spin-button,
+    input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
     }
 </style>

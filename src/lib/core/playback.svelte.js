@@ -56,21 +56,13 @@ export class Playback {
   toggle() {
     const api = this.#engine.api;
     if (!api || !api.isReadyForPlayback) return;
-    try {
-      api.playPause();
-    } catch {
-      // Ignore audio node state errors if sound engine is initializing
-    }
+    api.playPause();
   }
 
   stop() {
     const api = this.#engine.api;
     if (!api || !api.isReadyForPlayback) return;
-    try {
-      api.stop();
-    } catch {
-      // Ignore audio node state errors
-    }
+    api.stop();
     this.isPlaying = false;
     this.currentTime = 0;
   }
@@ -79,7 +71,9 @@ export class Playback {
   toggleMetronome() {
     this.isMetronomeActive = !this.isMetronomeActive;
     if (this.#engine.api) {
-      this.#engine.api.metronomeVolume = this.isMetronomeActive ? this.metronomeVolume : 0;
+      this.#engine.api.metronomeVolume = this.isMetronomeActive
+        ? this.metronomeVolume
+        : 0;
     }
   }
 
@@ -94,7 +88,9 @@ export class Playback {
   toggleCountIn() {
     this.isCountInActive = !this.isCountInActive;
     if (this.#engine.api) {
-      this.#engine.api.countInVolume = this.isCountInActive ? this.countInVolume : 0;
+      this.#engine.api.countInVolume = this.isCountInActive
+        ? this.countInVolume
+        : 0;
     }
   }
 
