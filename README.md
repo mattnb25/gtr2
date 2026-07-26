@@ -6,7 +6,7 @@ to do:
 - implement view to show tab only notation
 
 - **Playback:** Play/Stop, Metronome (Toggle/Vol), Count-In, Tempo Scale, better SoundFont.
-- **transport:** Fret Numpad, String Navigation, Delete.
+
 - **Input:** Fret Numpad, String Navigation, Delete, selection w/ loops, copy/paste.
 
 ---
