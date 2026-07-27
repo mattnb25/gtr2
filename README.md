@@ -3,14 +3,19 @@ to do:
 
 ### (Next up)
 
+- padding and spacing for score info, note effects, and padding on ssytem for playback scroll
 - implement view to show tab only notation
 - undo/redo
-
-- **Playback:** transport.svelte and playback.svelte.js refactor + better SoundFont.
-
+- transport styles
+- better SoundFont.
 - **Input:** Fret Numpad, String Navigation, Delete, selection w/ loops, copy/paste.
 
----
+### (far future)
+
+- basic pitch auto write on current and new from audio
+- export and import music xml or midi
+- trainer w/ and without pitch api
+- custom audio tracks for transcription
 
 ### 🎸 Track (Instrumentation)
 
