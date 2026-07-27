@@ -5,7 +5,6 @@
   let canvasEl = $state(null);
 
   onMount(() => {
-    apiSettings.player.scrollElement = canvasEl;
     project.init(canvasEl);
     project.io.newFile();
     return () => project.engine.destroy();

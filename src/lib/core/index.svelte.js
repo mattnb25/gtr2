@@ -10,8 +10,7 @@ class Project {
   playback = new Playback(this.engine);
 
   hasUnsavedChanges = $state(false);
-
-  canvasEl = null;
+  canvasEl = $state(null);
 
   settings = {
     enableLazyLoading: true,
@@ -32,18 +31,16 @@ class Project {
 
   init(canvasEl) {
     this.canvasEl = canvasEl;
-    this.engine.init(canvasEl, settings);
+    this.settings.player.scrollElement = this.canvasEl;
+    this.engine.init(this.canvasEl, this.settings);
     this.editor.initListeners();
     this.playback.initListeners();
   }
 
   resetEngine() {
-    if (!this.canvasEl || !this.settings) return;
+    if (!this.canvasEl) return;
     this.engine.destroy();
-    this.engine.init(this.canvasEl, this.settings);
-    // Re‑attach listeners after re‑initialisation
-    this.editor.initListeners();
-    this.playback.initListeners();
+    this.init(this.canvasEl);
   }
 }
 
