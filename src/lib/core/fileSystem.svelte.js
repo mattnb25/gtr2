@@ -55,6 +55,8 @@ export class FileSystem {
 
   async loadFileData(file) {
     const data = await file.arrayBuffer();
+    // Reset engine before loading new file data to ensure clean state
+    this.#project.resetEngine();
     this.#engine.api?.load(new Uint8Array(data));
     this.#project.hasUnsavedChanges = false;
   }

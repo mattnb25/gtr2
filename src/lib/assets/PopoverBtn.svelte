@@ -68,11 +68,4 @@
   :global(.popover-target button:hover) {
     background: #f5f5f5;
   }
-
-  :global(.popover-target .header) {
-    padding: 4px 8px;
-    font-size: 1.2rem;
-    color: dimgray;
-    text-transform: uppercase;
-  }
 </style>

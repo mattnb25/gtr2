@@ -1,40 +1,23 @@
 <script>
-    import { onMount } from "svelte";
-    import { project } from "$lib/core/index.svelte.js";
+  import { onMount } from "svelte";
+  import { project } from "$lib/core/index.svelte.js";
 
-    let canvasEl = $state(null);
+  let canvasEl = $state(null);
 
-    let apiSettings = {
-        enableLazyLoading: true,
-        core: {
-            engine: "html5",
-            fontDirectory: "/font/",
-            includeNoteBounds: true,
-        },
-        player: {
-            soundFont: "/soundfont/sonivox.sf3",
-            enablePlayer: true,
-            scrollMode: "offscreen",
-        },
-        display: {
-            padding: [14, 18],
-        },
-    };
-
-    onMount(() => {
-        apiSettings.player.scrollElement = canvasEl;
-        project.init(canvasEl, apiSettings);
-        project.io.newFile();
-        return () => project.engine.destroy();
-    });
+  onMount(() => {
+    apiSettings.player.scrollElement = canvasEl;
+    project.init(canvasEl);
+    project.io.newFile();
+    return () => project.engine.destroy();
+  });
 </script>
 
 <div class="canvas" bind:this={canvasEl}></div>
 
 <style>
-    .canvas {
-        scrollbar-width: none;
-        overflow-x: hidden;
-        flex-grow: 1;
-    }
+  .canvas {
+    scrollbar-width: none;
+    overflow-x: hidden;
+    flex-grow: 1;
+  }
 </style>
