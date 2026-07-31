@@ -26,6 +26,8 @@ class Project {
     },
     display: {
       padding: [14, 18],
+      effectBandPaddingBottom: 8,
+      firstNotationStaffPaddingTop: 8,
     },
   };
 

@@ -3,7 +3,6 @@ to do:
 
 ### (Next up)
 
-- padding and spacing for score info, note effects, and padding on ssytem for playback scroll
 - implement view to show tab only notation
 - undo/redo
 - transport styles
