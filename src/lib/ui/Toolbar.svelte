@@ -39,20 +39,12 @@
 </div>
 
 <style>
-<<<<<<< HEAD
   #tabs {
-=======
-    #tabs {
->>>>>>> 4032de7e18880299fa80174422e0dbc5ba853bee
     display: flex;
     background: var(--color-bg-subtle);
     border: solid var(--color-border);
     border-width: 1px 0;
-<<<<<<< HEAD
-    padding: var(--spacing-xs);
-=======
     padding: var(--spacing-sm);
->>>>>>> 4032de7e18880299fa80174422e0dbc5ba853bee
     gap: var(--spacing-xs);
     overflow-x: auto;
     flex-shrink: 0;

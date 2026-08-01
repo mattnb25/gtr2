@@ -85,7 +85,6 @@
 {/if}
 
 <style>
-<<<<<<< HEAD
   .transport-bar {
     display: flex;
     padding: var(--spacing-xs);
@@ -95,8 +94,6 @@
   .scrubber {
     display: flex;
   }
-=======
->>>>>>> 4032de7e18880299fa80174422e0dbc5ba853bee
 
   .spinner {
     display: inline-block;
@@ -123,8 +120,4 @@
       transform: rotate(360deg);
     }
   }
-<<<<<<< HEAD
-=======
-
->>>>>>> 4032de7e18880299fa80174422e0dbc5ba853bee
 </style>
