@@ -27,18 +27,18 @@
   }
 
   .popover-btn:active {
-    color: white;
-    background-color: #5a6ee0;
-    border: 1px solid #5a6ee0;
+    color: var(--color-bg);
+    background-color: var(--color-primary);
+    border: 1px solid var(--color-primary);
   }
 
   .popover-target {
-    border-radius: 8px;
-    border: 1px solid #e0e0e0;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
     min-width: 150px;
-    margin: 8px;
+    margin: var(--spacing-sm);
     margin-left: 0;
-    padding: 8px 8px;
+    padding: var(--spacing-sm);
   }
 
   [popover]:popover-open {
@@ -48,24 +48,25 @@
   .popover-container {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--spacing-xs);
   }
 
   :global(.popover-target button) {
     border: none;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     background-color: transparent;
     display: block;
     width: 100%;
     text-align: left;
-    padding: 4px 8px;
+    padding: var(--spacing-xs) var(--spacing-sm);
   }
+
   :global(.popover-target button:active) {
-    color: #5a6ee0;
-    background-color: #eef0fd;
+    color: var(--color-primary);
+    background-color: var(--color-primary-alpha-10);
   }
 
   :global(.popover-target button:hover) {
-    background: #f5f5f5;
+    background: var(--color-bg-subtle);
   }
 </style>

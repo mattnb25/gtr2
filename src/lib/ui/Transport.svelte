@@ -1,6 +1,6 @@
 <script>
   import { project } from "$lib/core/index.svelte.js";
-  import SplitPopoverBtn from "$lib/assets/SplitPopoverBtn.svelte";
+  import PopoverBtn from "$lib/assets/PopoverBtn.svelte";
   import NumInput from "$lib/assets/numInput.svelte";
 
   let pb = $derived(project.playback);
@@ -16,11 +16,28 @@
 
 {#if pb.isRendered && pb.isPlayerReady}
   <div class="transport-bar">
-    <SplitPopoverBtn
-      name="playback-options"
-      label={pb.isPlaying ? "Pause" : "Play"}
-      onclick={() => pb.toggle()}
-    >
+    <button onclick={() => pb.toggle()}>
+      {pb.isPlaying ? "Pause" : "Play"}
+    </button>
+
+    <div class="scrubber">
+      <div>
+        {fmt(pb.currentTime)}
+      </div>
+      <input
+        type="range"
+        min="0"
+        max={pb.endTime || 100}
+        value={pb.currentTime}
+        oninput={(e) => {
+          pb.isSeeking = true;
+          pb.currentTime = Number(e.target.value);
+        }}
+        onchange={(e) => pb.seek(Number(e.target.value))}
+      />
+    </div>
+
+    <PopoverBtn name="playback-options" label="▾">
       <div class="header">Playback</div>
       <label>
         <input
@@ -54,24 +71,7 @@
         value={Math.round(pb.metronomeVol * 100)}
         callback={(v) => pb.setMetronomeVol(v / 100)}
       />
-    </SplitPopoverBtn>
-
-    <div class="scrubber">
-      <div>
-        {fmt(pb.currentTime)}
-      </div>
-      <input
-        type="range"
-        min="0"
-        max={pb.endTime || 100}
-        value={pb.currentTime}
-        oninput={(e) => {
-          pb.isSeeking = true;
-          pb.currentTime = Number(e.target.value);
-        }}
-        onchange={(e) => pb.seek(Number(e.target.value))}
-      />
-    </div>
+    </PopoverBtn>
   </div>
 {:else}
   <div class="transport-loading">
@@ -87,55 +87,37 @@
 <style>
   .transport-bar {
     display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 8px 16px;
-    background: #fff;
-    border-top: 1px solid #e0e0e0;
-    flex-shrink: 0;
-    overflow: visible;
+    padding: var(--spacing-xs);
+    gap: var(--spacing-xs);
   }
 
-  .transport-loading {
+  .scrubber {
     display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    border-top: 1px solid #e0e0e0;
-    flex-shrink: 0;
-    font-size: 0.85rem;
-    color: #6b7280;
   }
 
   .spinner {
     display: inline-block;
     width: 14px;
     height: 14px;
-    border: 2px solid #d1d5db;
-    border-top-color: #5a6ee0;
+    border: 2px solid var(--color-border);
+    border-top-color: var(--color-primary);
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
     flex-shrink: 0;
+  }
+
+  .transport-loading {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-xs);
+    color: var(--color-text-muted);
+    font-size: 1.2rem;
   }
 
   @keyframes spin {
     to {
       transform: rotate(360deg);
     }
-  }
-
-  .scrubber {
-    position: relative;
-    display: flex;
-    align-items: center;
-    flex-grow: 1;
-    padding: 0 8px;
-    min-height: 36px;
-  }
-
-  .scrubber input[type="range"] {
-    width: 100%;
-    accent-color: #5a6ee0;
-    cursor: pointer;
   }
 </style>
