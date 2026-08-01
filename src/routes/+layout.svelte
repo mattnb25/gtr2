@@ -23,9 +23,13 @@
     --color-text-dark: #000000;
 
     /* Typography */
+<<<<<<< HEAD
     --font-family-base:
       system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
       sans-serif;
+=======
+    --font-family-base: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+>>>>>>> 4032de7e18880299fa80174422e0dbc5ba853bee
     --font-size-root: 62.5%;
     --font-size-header: 1.2rem;
 
@@ -67,8 +71,13 @@
   }
 
   :global(button:focus-visible) {
+<<<<<<< HEAD
     z-index: 1;
     outline: 2px solid var(--color-primary);
+=======
+    outline: 2px solid var(--color-primary);
+    outline-offset: 1px;
+>>>>>>> 4032de7e18880299fa80174422e0dbc5ba853bee
   }
 
   :global(button:focus:not(:focus-visible)) {
