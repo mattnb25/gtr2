@@ -27,6 +27,6 @@
   :global(.split-btn-group .popover-btn) {
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
-    padding: 4px 8px;
+    padding: var(--spacing-xs) var(--spacing-sm);
   }
 </style>
