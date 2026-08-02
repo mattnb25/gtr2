@@ -65,7 +65,7 @@ export class FileSystem {
     if (this.#project.hasUnsavedChanges && !confirm("Discard unsaved changes?"))
       return;
     this.fileHandle = null;
-    this.#engine.api?.tex("\\title 'Untitled'");
+    this.#engine.api?.tex("\\title 'Untitled' r");
     this.#project.hasUnsavedChanges = false;
   }
 

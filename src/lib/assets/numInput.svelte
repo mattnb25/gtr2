@@ -29,11 +29,11 @@
 
     <input
         bind:this={inputEl}
+        bind:value
         type="number"
         {min}
         {max}
         {step}
-        {value}
         onchange={syncValue}
     />
 

@@ -3,15 +3,55 @@
     import { project } from "$lib/core/index.svelte.js";
 
     let { children } = $props();
+    let ed = $derived(project.editor);
 
     function handleKeydown(e) {
-        if (!(e.ctrlKey || e.metaKey)) return;
-        if (e.key === 'z' && !e.shiftKey) {
+        if (["INPUT", "TEXTAREA"].includes(e.target?.tagName)) return;
+
+        if (e.key >= "0" && e.key <= "9") {
+            e.preventDefault();
+            ed.setFretDigit(parseInt(e.key, 10));
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            ed.moveString(-1);
+        } else if (e.key === "ArrowDown") {
+            e.preventDefault();
+            ed.moveString(1);
+        } else if (e.key === "ArrowLeft") {
+            e.preventDefault();
+            ed.moveBeat(-1, e.shiftKey);
+        } else if (e.key === "ArrowRight") {
+            e.preventDefault();
+            ed.moveBeat(1, e.shiftKey);
+        } else if (e.key === "Delete" || e.key === "Backspace") {
+            e.preventDefault();
+            ed.deleteNote();
+        } else if (e.key === "Insert" || (e.ctrlKey && e.key === "a")) {
+            e.preventDefault();
+            ed.addBeat();
+        } else if (e.ctrlKey && e.key === "b") {
+            e.preventDefault();
+            ed.addBar();
+        } else if (e.ctrlKey && e.key === "c") {
+            e.preventDefault();
+            ed.copy();
+        } else if (e.ctrlKey && e.key === "v") {
+            e.preventDefault();
+            ed.paste();
+        } else if (e.ctrlKey && e.key === "x") {
+            e.preventDefault();
+            ed.cut();
+        } else if (e.ctrlKey && e.key === "z" && !e.shiftKey) {
             e.preventDefault();
             project.history.undo();
-        } else if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) {
+        } else if (
+            e.ctrlKey &&
+            (e.key === "y" || (e.key === "z" && e.shiftKey))
+        ) {
             e.preventDefault();
             project.history.redo();
+        } else if (e.key === "Escape") {
+            ed.clearSelection();
         }
     }
 </script>
@@ -113,12 +153,19 @@
     }
 
     :global(.at-selection div) {
-        /* Defines the color of the selection background */
-        background: var(--color-primary-alpha-10);
+        background: var(--color-primary-alpha-10) !important;
     }
 
     :global(.at-cursor-beat) {
-        /* Defines the beat cursor */
-        background: var(--color-primary-alpha-50);
+        background: rgba(90, 110, 224, 0.15) !important;
+        border: 2px solid #5a6ee0 !important;
+        border-radius: 4px;
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.8), 0 0 6px rgba(90, 110, 224, 0.5);
+        pointer-events: none;
+    }
+
+    :global(.at-cursor-note) {
+        background: rgba(90, 110, 224, 0.4) !important;
+        border-radius: 2px;
     }
 </style>
