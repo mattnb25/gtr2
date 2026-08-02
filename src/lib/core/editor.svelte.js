@@ -5,12 +5,11 @@ export class Editor {
   #project;
 
   activeBeat = $state(null);
-  activeString = $state(1); // 1 = High E (top string of TAB), 6 = Low E (bottom string of TAB)
-  selectionAnchor = $state(null); // Beat where selection started
-  isSelectMode = $state(false); // Mobile toggle for range selection
+  activeNote = $state(null);
+  activeString = $state(1);
   cursorBox = $state(null);
   selectionBoxes = $state([]);
-  clipboard = $state(null); // Copied beat data for Copy/Paste
+  clipboard = $state(null);
 
   constructor(engine, project) {
     this.#engine = engine;
@@ -24,8 +23,8 @@ export class Editor {
     api.scoreLoaded.on(() => {
       const fb = this.firstBeat;
       if (fb) {
-        this.activeBeat = fb;
-        api.activeBeats = [fb];
+        this.selectBeat(fb);
+        api.activeBeats = [];
       }
       this.updateCursorBox();
     });
@@ -33,143 +32,6 @@ export class Editor {
     api.postRenderFinished.on(() => {
       this.updateCursorBox();
     });
-  }
-
-  /** Gets all beats in the current selection range */
-  get selectedBeats() {
-    if (!this.selectionAnchor || !this.activeBeat) {
-      return this.activeBeat ? [this.activeBeat] : [];
-    }
-
-    const currentStaff = this.activeBeat.voice?.bar?.staff;
-    if (!currentStaff) return [this.activeBeat];
-
-    const allBeats = [];
-    for (const bar of currentStaff.bars || []) {
-      for (const voice of bar.voices || []) {
-        for (const b of voice.beats || []) {
-          allBeats.push(b);
-        }
-      }
-    }
-
-    const idxA = allBeats.indexOf(this.selectionAnchor);
-    const idxB = allBeats.indexOf(this.activeBeat);
-    if (idxA === -1 || idxB === -1) return [this.activeBeat];
-
-    const start = Math.min(idxA, idxB);
-    const end = Math.max(idxA, idxB);
-    return allBeats.slice(start, end + 1);
-  }
-
-  updateCursorBox() {
-    const api = this.#engine.api;
-    const beat = this.activeBeat;
-    if (!api || !beat || !api.boundsLookup) {
-      this.cursorBox = null;
-      this.selectionBoxes = [];
-      return;
-    }
-
-    try {
-      // 1. Get beat bounds directly via AlphaTab's built-in findBeat
-      const bb = api.boundsLookup.findBeat?.(beat);
-      if (!bb || !bb.visualBounds) {
-        this.cursorBox = null;
-        this.selectionBoxes = [];
-        return;
-      }
-
-      const vb = bb.visualBounds;
-      const currentTrack = api.score?.tracks?.[0];
-      const numStrings =
-        currentTrack?.staves?.[0]?.stringTuning?.tunings?.length || 6;
-
-      // 2. Find the staffGroup containing this beat by checking Y bounds
-      const staffGroups = api.boundsLookup.staffGroups || [];
-      let tabStaff = null;
-
-      for (const sg of staffGroups) {
-        if (
-          sg.visualBounds &&
-          vb.y >= sg.visualBounds.y - 20 &&
-          vb.y <= sg.visualBounds.y + sg.visualBounds.h + 20
-        ) {
-          const staves = sg.staves || [];
-          tabStaff =
-            staves.find((s) => s.stave?.isTab || s.isTab) ||
-            staves[staves.length - 1];
-          break;
-        }
-      }
-
-      // 3. Extract TAB staff Y and height
-      let tabY = vb.y;
-      let tabH = vb.h;
-
-      if (tabStaff && tabStaff.visualBounds) {
-        tabY = tabStaff.visualBounds.y;
-        tabH = tabStaff.visualBounds.h;
-      }
-
-      // 4. Calculate exact Y position for activeString on TAB staff
-      // String 1 (High E) = top line of TAB (tabY)
-      // String 6 (Low E)  = bottom line of TAB (tabY + tabH)
-      const stringGap = tabH / Math.max(numStrings - 1, 1);
-      const stringY = tabY + (this.activeString - 1) * stringGap;
-
-      this.cursorBox = {
-        x: vb.x - 2,
-        y: stringY - 9,
-        w: Math.max(vb.w + 4, 18),
-        h: 18,
-      };
-
-      // 5. Calculate selection boxes if multiple beats selected
-      const selBeats = this.selectedBeats;
-      if (selBeats.length > 1) {
-        const boxes = [];
-        for (const sBeat of selBeats) {
-          const sBb = api.boundsLookup.findBeat?.(sBeat);
-          if (sBb && sBb.visualBounds) {
-            const sVb = sBb.visualBounds;
-            let sTabY = sVb.y;
-            let sTabH = sVb.h;
-
-            for (const sg of staffGroups) {
-              if (
-                sg.visualBounds &&
-                sVb.y >= sg.visualBounds.y - 20 &&
-                sVb.y <= sg.visualBounds.y + sg.visualBounds.h + 20
-              ) {
-                const staves = sg.staves || [];
-                const sTab =
-                  staves.find((s) => s.stave?.isTab || s.isTab) ||
-                  staves[staves.length - 1];
-                if (sTab && sTab.visualBounds) {
-                  sTabY = sTab.visualBounds.y;
-                  sTabH = sTab.visualBounds.h;
-                }
-                break;
-              }
-            }
-
-            boxes.push({
-              x: sVb.x - 2,
-              y: sTabY - 4,
-              w: Math.max(sVb.w + 4, 18),
-              h: sTabH + 8,
-            });
-          }
-        }
-        this.selectionBoxes = boxes;
-      } else {
-        this.selectionBoxes = [];
-      }
-    } catch {
-      this.cursorBox = null;
-      this.selectionBoxes = [];
-    }
   }
 
   get firstBeat() {
@@ -183,10 +45,34 @@ export class Editor {
     if (this.activeBeat) return this.activeBeat;
     const fb = this.firstBeat;
     if (fb && this.#engine.api) {
-      this.#engine.api.activeBeats = [fb];
-      this.activeBeat = fb;
+      this.selectBeat(fb);
+      this.#engine.api.activeBeats = [];
     }
     return this.activeBeat;
+  }
+
+  get beatNotes() {
+    const beat = this.currentActiveBeat;
+    if (!beat?.notes?.length) return [];
+    return [...beat.notes].sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+  }
+
+  get stringCount() {
+    const staff = this.currentActiveBeat?.voice?.bar?.staff;
+    return staff?.stringTuning?.tunings?.length || 6;
+  }
+
+  get cursorLabel() {
+    const beat = this.currentActiveBeat;
+    if (!beat) return "No beat";
+
+    const beatIndex = beat.voice?.beats?.indexOf(beat);
+    const beatLabel = beatIndex >= 0 ? `Beat ${beatIndex + 1}` : "Beat";
+    const noteIndex = this.activeNote ? this.beatNotes.indexOf(this.activeNote) + 1 : 0;
+    const noteLabel = this.activeNote ? ` • Note ${noteIndex}` : " • No note";
+    const fretLabel = this.activeNote ? ` • Fret ${this.activeNote.fret ?? 0}` : "";
+    const stringLabel = this.activeNote?.string ? ` • String ${this.activeNote.string}` : ` • String ${this.activeString}`;
+    return `${beatLabel}${noteLabel}${stringLabel}${fretLabel}`;
   }
 
   get score() {
@@ -220,129 +106,223 @@ export class Editor {
     this.#engine.requestUpdate();
   }
 
-  // --- NAVIGATION & SELECTION MODE ---
+  getTabStaffInfo(beat, api) {
+    const beatBounds = api.boundsLookup?.findBeat?.(beat);
+    if (!beatBounds?.visualBounds) return null;
 
-  toggleSelectMode() {
-    this.isSelectMode = !this.isSelectMode;
-    if (this.isSelectMode) {
-      if (!this.selectionAnchor) {
-        this.selectionAnchor = this.currentActiveBeat;
+    const vb = beatBounds.visualBounds;
+    const staffGroups = api.boundsLookup?.staffGroups || [];
+
+    let tabStaff = null;
+    for (const group of staffGroups) {
+      const groupBounds = group.visualBounds;
+      if (
+        groupBounds &&
+        vb.y >= groupBounds.y - 20 &&
+        vb.y <= groupBounds.y + groupBounds.h + 20
+      ) {
+        const staves = group.staves || [];
+        tabStaff =
+          staves.find((s) => s.stave?.isTab || s.isTab) ||
+          staves[staves.length - 1];
+        break;
       }
-    } else {
-      this.selectionAnchor = null;
+    }
+
+    const tabY = tabStaff?.visualBounds?.y ?? vb.y;
+    const tabH = tabStaff?.visualBounds?.h ?? vb.h;
+    const numStrings =
+      api.score?.tracks?.[0]?.staves?.[0]?.stringTuning?.tunings?.length || 6;
+    const stringGap = tabH / Math.max(numStrings - 1, 1);
+
+    return { vb, tabY, tabH, stringGap };
+  }
+
+  getCursorBoxForBeat(beat, api) {
+    const layout = this.getTabStaffInfo(beat, api);
+    if (!layout) return null;
+
+    const { vb, tabY, stringGap } = layout;
+    const selectedString = this.activeNote?.string ?? this.activeString;
+    const clampedString = Math.min(Math.max(selectedString, 1), this.stringCount);
+    const stringY = tabY + (clampedString - 1) * stringGap;
+
+    return {
+      x: vb.x - 2,
+      y: stringY - 9,
+      w: Math.max(vb.w + 4, 18),
+      h: 18,
+    };
+  }
+
+  updateCursorBox() {
+    const api = this.#engine.api;
+    const beat = this.currentActiveBeat;
+    if (!api || !beat || !api.boundsLookup) {
+      this.cursorBox = null;
+      this.selectionBoxes = [];
+      return;
+    }
+
+    try {
+      this.cursorBox = this.getCursorBoxForBeat(beat, api);
+      this.selectionBoxes = [];
+    } catch {
+      this.cursorBox = null;
+      this.selectionBoxes = [];
+    }
+  }
+
+  selectBeat(beat) {
+    if (!beat) return;
+    this.activeBeat = beat;
+    this.activeNote = this.beatNotes[0] || null;
+    if (this.#engine.api) {
+      this.#engine.api.activeBeats = [];
     }
     this.updateCursorBox();
   }
 
-  moveString(delta) {
-    const currentTrack = this.#engine.api?.tracks?.[0];
-    const maxStrings =
-      currentTrack?.staves?.[0]?.stringTuning?.tunings?.length || 6;
-    const newStr = this.activeString + delta;
-    if (newStr >= 1 && newStr <= maxStrings) {
-      this.activeString = newStr;
-      this.updateCursorBox();
-    }
+  selectNote(note) {
+    if (!note) return;
+    this.activeNote = note;
+    this.updateCursorBox();
   }
 
-  moveBeat(delta, isShiftPressed = false) {
+  moveBeat(delta) {
     const beat = this.currentActiveBeat;
     if (!beat || !beat.voice || !beat.voice.bar) return;
 
     const currentStaff = beat.voice.bar.staff;
     if (!currentStaff) return;
 
-    const allBeats = [];
+    const beats = [];
     for (const bar of currentStaff.bars || []) {
       for (const voice of bar.voices || []) {
-        for (const b of voice.beats || []) {
-          allBeats.push(b);
+        for (const nextBeat of voice.beats || []) {
+          beats.push(nextBeat);
         }
       }
     }
 
-    const idx = allBeats.indexOf(beat);
-    if (idx !== -1) {
-      const nextBeat = allBeats[idx + delta];
-      if (nextBeat) {
-        const shouldSelect = isShiftPressed || this.isSelectMode;
-        if (shouldSelect) {
-          if (!this.selectionAnchor) {
-            this.selectionAnchor = beat;
-          }
-        } else {
-          this.selectionAnchor = null;
-        }
+    const idx = beats.indexOf(beat);
+    const nextBeat = beats[idx + delta];
+    if (!nextBeat) return;
 
-        this.activeBeat = nextBeat;
-        if (this.#engine.api) {
-          this.#engine.api.activeBeats = [nextBeat];
-        }
-        this.updateCursorBox();
-      }
-    }
+    this.selectBeat(nextBeat);
   }
 
-  clearSelection() {
-    this.selectionAnchor = null;
-    this.isSelectMode = false;
+  moveNote(delta) {
+    const beat = this.currentActiveBeat;
+    if (!beat) return;
+
+    const notes = this.beatNotes;
+    if (!notes.length) {
+      this.activeNote = null;
+      this.updateCursorBox();
+      return;
+    }
+
+    const currentIndex = notes.indexOf(this.activeNote);
+    let nextIndex = currentIndex;
+    if (nextIndex === -1) {
+      nextIndex = delta > 0 ? 0 : notes.length - 1;
+    } else {
+      nextIndex = Math.min(Math.max(currentIndex + delta, 0), notes.length - 1);
+    }
+
+    this.activeNote = notes[nextIndex] || null;
     this.updateCursorBox();
   }
 
-  // --- MODEL MUTATIONS ---
+  setString(stringNumber) {
+    const target = Number(stringNumber);
+    if (!Number.isInteger(target)) return;
 
-  setFretDigit(digit) {
+    const clamped = Math.min(Math.max(target, 1), this.stringCount);
+    if (clamped === this.activeString) return;
+
+    this.activeString = clamped;
+    if (this.activeNote && this.currentActiveBeat?.notes?.includes(this.activeNote)) {
+      this.activeNote.string = clamped;
+    }
+
+    this.#engine.api.score?.finish();
+    this.#project.hasUnsavedChanges = true;
+    this.#engine.requestUpdate();
+    this.updateCursorBox();
+  }
+
+  moveString(delta) {
+    this.setString(this.activeString + delta);
+  }
+
+  addNote() {
     const beat = this.currentActiveBeat;
     if (!beat) return;
 
     this.#project.history.snapshot();
 
-    let note = beat.notes?.find((n) => n.string === this.activeString);
-    if (!note) {
-      note = new alphaTab.model.Note();
-      note.string = this.activeString;
-      note.fret = digit;
-      beat.addNote(note);
-    } else {
-      const now = Date.now();
-      if (
-        this._lastInputTime &&
-        now - this._lastInputTime < 1000 &&
-        note.fret < 10
-      ) {
-        const combined = note.fret * 10 + digit;
-        note.fret = Math.min(combined, 30);
-      } else {
-        note.fret = digit;
-      }
-      this._lastInputTime = now;
+    const existingNotes = beat.notes || [];
+    const usedStrings = new Set(existingNotes.map((note) => note.string));
+
+    let targetString = this.activeString;
+    let attempts = 0;
+    while (usedStrings.has(targetString) && attempts < this.stringCount) {
+      targetString = targetString < this.stringCount ? targetString + 1 : 1;
+      attempts += 1;
     }
+
+    const existing = existingNotes.find((note) => note.string === targetString);
+    if (existing) {
+      this.activeString = targetString;
+      this.activeNote = existing;
+      this.#engine.api.score?.finish();
+      this.#project.hasUnsavedChanges = true;
+      this.#engine.requestUpdate();
+      return;
+    }
+
+    const note = new alphaTab.model.Note();
+    note.string = targetString;
+    note.fret = this.activeNote?.fret ?? 0;
+    beat.addNote(note);
+    this.activeString = targetString;
+    this.activeNote = note;
 
     this.#engine.api.score?.finish();
     this.#project.hasUnsavedChanges = true;
     this.#engine.requestUpdate();
-
-    try {
-      this.#engine.api?.playNote?.(note);
-    } catch {}
   }
 
   deleteNote() {
-    const sBeats = this.selectedBeats;
-    if (!sBeats.length) return;
+    const beat = this.currentActiveBeat;
+    if (!beat || !this.activeNote) return;
 
     this.#project.history.snapshot();
-
-    for (const beat of sBeats) {
-      const note = beat.notes?.find((n) => n.string === this.activeString);
-      if (note) {
-        beat.removeNote(note);
-      }
-    }
+    beat.removeNote(this.activeNote);
+    this.activeNote = this.beatNotes[0] || null;
 
     this.#engine.api.score?.finish();
     this.#project.hasUnsavedChanges = true;
     this.#engine.requestUpdate();
+  }
+
+  changeFret(delta) {
+    if (!this.currentActiveBeat) return;
+
+    if (!this.activeNote) {
+      this.addNote();
+      if (!this.activeNote) return;
+    }
+
+    const nextFret = Math.max(0, (this.activeNote.fret ?? 0) + delta);
+    this.#project.history.snapshot();
+    this.activeNote.fret = nextFret;
+    this.#engine.api.score?.finish();
+    this.#project.hasUnsavedChanges = true;
+    this.#engine.requestUpdate();
+    this.updateCursorBox();
   }
 
   addBeat() {
@@ -363,11 +343,7 @@ export class Editor {
 
     this.#engine.api.score?.finish();
     this.#project.hasUnsavedChanges = true;
-    this.selectionAnchor = null;
-    this.activeBeat = newBeat;
-    if (this.#engine.api) {
-      this.#engine.api.activeBeats = [newBeat];
-    }
+    this.selectBeat(newBeat);
     this.#engine.requestUpdate();
   }
 
@@ -400,65 +376,50 @@ export class Editor {
 
     this.score.finish();
     this.#project.hasUnsavedChanges = true;
-    this.selectionAnchor = null;
-    this.activeBeat = newBeat;
-    if (this.#engine.api) {
-      this.#engine.api.activeBeats = [newBeat];
-    }
+    this.selectBeat(newBeat);
     this.#engine.requestUpdate();
   }
 
-  // --- COPY / PASTE / CUT ---
-
   copy() {
-    const sBeats = this.selectedBeats;
-    if (!sBeats.length) return;
+    const beat = this.currentActiveBeat;
+    if (!beat) return;
 
-    this.clipboard = sBeats.map((b) => ({
-      duration: b.duration,
-      notes: (b.notes || []).map((n) => ({
-        string: n.string,
-        fret: n.fret,
+    this.clipboard = {
+      duration: beat.duration,
+      notes: (beat.notes || []).map((note) => ({
+        string: note.string,
+        fret: note.fret,
       })),
-    }));
+    };
   }
 
   paste() {
-    if (!this.clipboard || !this.clipboard.length) return;
+    if (!this.clipboard || !this.currentActiveBeat?.voice) return;
     const beat = this.currentActiveBeat;
-    if (!beat || !beat.voice) return;
+    const voice = beat.voice;
 
     this.#project.history.snapshot();
-    const voice = beat.voice;
-    let insertIdx = voice.beats.indexOf(beat);
+    const newBeat = new alphaTab.model.Beat();
+    newBeat.duration = this.clipboard.duration;
+    newBeat.voice = voice;
 
-    for (const item of this.clipboard) {
-      const newBeat = new alphaTab.model.Beat();
-      newBeat.duration = item.duration;
-      newBeat.voice = voice;
-
-      for (const nData of item.notes) {
-        const note = new alphaTab.model.Note();
-        note.string = nData.string;
-        note.fret = nData.fret;
-        newBeat.addNote(note);
-      }
-
-      if (insertIdx !== -1) {
-        voice.beats.splice(insertIdx + 1, 0, newBeat);
-        insertIdx++;
-      } else {
-        voice.addBeat(newBeat);
-      }
-      this.activeBeat = newBeat;
+    for (const noteData of this.clipboard.notes) {
+      const note = new alphaTab.model.Note();
+      note.string = noteData.string;
+      note.fret = noteData.fret;
+      newBeat.addNote(note);
     }
 
-    this.selectionAnchor = null;
+    const insertIdx = voice.beats.indexOf(beat);
+    if (insertIdx !== -1) {
+      voice.beats.splice(insertIdx + 1, 0, newBeat);
+    } else {
+      voice.addBeat(newBeat);
+    }
+
     this.score?.finish();
     this.#project.hasUnsavedChanges = true;
-    if (this.#engine.api) {
-      this.#engine.api.activeBeats = [this.activeBeat];
-    }
+    this.selectBeat(newBeat);
     this.#engine.requestUpdate();
   }
 
