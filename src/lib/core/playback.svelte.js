@@ -54,8 +54,15 @@ export class Playback {
 
     api.playerReady.on(() => {
       this.isPlayerReady = true;
+      this.syncToApi();
       this.#engine.ping();
     });
+  }
+
+  syncToApi() {
+    if (!this.#engine.api) return;
+    this.#engine.api.playbackSpeed = this.playbackSpeed;
+    this.syncMetronomeVolume();
   }
 
   toggle() {

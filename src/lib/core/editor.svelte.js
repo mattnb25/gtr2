@@ -33,6 +33,7 @@ export class Editor {
 
   updateScoreField(field, value) {
     if (!this.#engine.api?.score) return;
+    this.#project.history.snapshot();
     this.#engine.api.score[field] = value;
     this.#project.hasUnsavedChanges = true;
     this.#engine.requestUpdate();

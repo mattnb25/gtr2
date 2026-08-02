@@ -2,9 +2,11 @@ import { Engine } from "./engine.svelte.js";
 import { FileSystem } from "./fileSystem.svelte.js";
 import { Editor } from "./editor.svelte.js";
 import { Playback } from "./playback.svelte.js";
+import { History } from "./history.svelte.js";
 
 class Project {
   engine = new Engine();
+  history = new History(this.engine, this);
   io = new FileSystem(this.engine, this);
   editor = new Editor(this.engine, this);
   playback = new Playback(this.engine);

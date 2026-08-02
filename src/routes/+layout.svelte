@@ -1,8 +1,22 @@
 <script>
     import favicon from "$lib/assets/favicon.svg";
+    import { project } from "$lib/core/index.svelte.js";
 
     let { children } = $props();
+
+    function handleKeydown(e) {
+        if (!(e.ctrlKey || e.metaKey)) return;
+        if (e.key === 'z' && !e.shiftKey) {
+            e.preventDefault();
+            project.history.undo();
+        } else if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) {
+            e.preventDefault();
+            project.history.redo();
+        }
+    }
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 <svelte:head>
     <link rel="icon" href={favicon} />

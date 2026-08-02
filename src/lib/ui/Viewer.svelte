@@ -16,7 +16,7 @@
 <style>
   .canvas {
     scrollbar-width: none;
-    overflow-x: hidden;
+    overflow: auto;
     flex-grow: 1;
   }
 </style>

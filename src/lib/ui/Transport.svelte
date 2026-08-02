@@ -2,6 +2,7 @@
     import { project } from "$lib/core/index.svelte.js";
     import SplitPopoverBtn from "$lib/assets/SplitPopoverBtn.svelte";
     import NumInput from "$lib/assets/numInput.svelte";
+    import Switch from "$lib/assets/Switch.svelte";
 
     let pb = $derived(project.playback);
 
@@ -18,28 +19,20 @@
     {#if pb.isRendered && pb.isPlayerReady}
         <SplitPopoverBtn
             name="playback-options"
-            label={pb.isPlaying
-                ? '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill="currentColor"><path d="M0 0h24v24H0z" fill="none"/><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>'
-                : '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill="currentColor"><path d="M0 0h24v24H0z" fill="none"/><path d="M8 5v14l11-7z"/></svg>'}
+            label={pb.isPlaying ? "Pause" : "Play"}
             onclick={() => pb.toggle()}
         >
-            <div class="header">Playback</div>
-            <label>
-                <input
-                    type="checkbox"
-                    checked={pb.isMetronomeActive}
-                    onchange={(e) => pb.toggleMetronome(e.target.checked)}
-                />
-                Metronome
-            </label>
-            <label>
-                <input
-                    type="checkbox"
-                    checked={pb.isCountInActive}
-                    onchange={(e) => pb.toggleCountIn(e.target.checked)}
-                />
-                Count-In
-            </label>
+            <Switch
+                label="Count-In"
+                checked={pb.isCountInActive}
+                onchange={(e) => pb.toggleCountIn(e.target.checked)}
+            />
+            <Switch
+                label="Metronome"
+                checked={pb.isMetronomeActive}
+                onchange={(e) => pb.toggleMetronome(e.target.checked)}
+            />
+
             <div class="header">Tempo (%)</div>
             <NumInput
                 min={25}
@@ -162,5 +155,10 @@
         height: 29px;
         width: 4px;
         background-color: var(--color-primary-alpha-50);
+    }
+
+    :global(.transport-bar .main-btn) {
+        width: 6rem;
+        justify-content: center;
     }
 </style>
