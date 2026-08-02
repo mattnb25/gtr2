@@ -1,11 +1,10 @@
-inspired by: [https://bubiche.github.io/fretwork/]
+inspired by: [httall ps://bubiche.github.io/fretwork/]
 to do:
 
 ### (Next up)
 
 - implement view to show tab only notation
 - undo/redo
-- transport styles
 - better SoundFont.
 - **Input:** Fret Numpad, String Navigation, Delete, selection w/ loops, copy/paste.
 

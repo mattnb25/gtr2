@@ -28,6 +28,9 @@ class Project {
       padding: [14, 18],
       effectBandPaddingBottom: 8,
       firstNotationStaffPaddingTop: 8,
+      resources: {
+        barNumberColor: "#5a6ee0",
+      },
     },
   };
 

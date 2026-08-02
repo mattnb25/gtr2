@@ -1,32 +1,33 @@
 <script>
-  import PopoverBtn from "./PopoverBtn.svelte";
+    import PopoverBtn from "./PopoverBtn.svelte";
 
-  let { name, label, children, onclick } = $props();
+    let { name, label, children, onclick } = $props();
 </script>
 
 <div class="split-btn-group">
-  <button class="main-btn" {onclick}>
-    {label}
-  </button>
-  <PopoverBtn {name} label="▾">
-    {@render children?.()}
-  </PopoverBtn>
+    <button class="main-btn" {onclick}>
+        {@html label}
+    </button>
+    <PopoverBtn {name} label="▾">
+        {@render children?.()}
+    </PopoverBtn>
 </div>
 
 <style>
-  .split-btn-group {
-    display: inline-flex;
-  }
+    .split-btn-group {
+        display: inline-flex;
+    }
 
-  .main-btn {
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
-    border-right: none;
-  }
+    .main-btn {
+        display: flex;
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+        border-right: none;
+    }
 
-  :global(.split-btn-group .popover-btn) {
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
-    padding: var(--spacing-xs) var(--spacing-sm);
-  }
+    :global(.split-btn-group .popover-btn) {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+        padding: var(--spacing-xs) var(--spacing-sm);
+    }
 </style>

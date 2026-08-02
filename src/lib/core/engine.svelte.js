@@ -10,10 +10,9 @@ export class Engine {
     this.destroy();
 
     for (const [element, font] of alphaTab.RenderingResources.defaultFonts) {
-      if (font.families.includes("serif")) {
-        font.family = "Cursive";
-      }
+      if (element === 0) font.size = font.size - 2;
     }
+
     this.api = new alphaTab.AlphaTabApi(canvasEl, settings);
 
     // Auto-tick Svelte when AlphaTab mutates internally

@@ -59,6 +59,7 @@
         background: transparent;
         border: none;
         cursor: pointer;
+        text-align: center;
     }
 
     .component-container button:hover {
