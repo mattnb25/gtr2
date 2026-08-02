@@ -1,4 +1,4 @@
-inspired by: [httall ps://bubiche.github.io/fretwork/]
+inspired by: [https://bubiche.github.io/fretwork/]
 to do:
 
 ### (Next up)

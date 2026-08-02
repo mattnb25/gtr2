@@ -26,7 +26,6 @@
         position: relative;
         display: flex;
         text-transform: capitalize;
-        align-items: center;
     }
 
     .popover-btn:active {
