@@ -13,6 +13,9 @@ export class Editor {
 
   clipboard = $state(null); // array of beat snapshots
 
+  // Remembers last fret used so addNote can repeat it
+  #lastFret = 0;
+
   // Two separate visual indicators:
   beatCursorBox = $state(null);  // full-column highlight for the current beat
   cursorBox = $state(null);      // single-string-row highlight for the note target
@@ -92,6 +95,21 @@ export class Editor {
     return this.selectionAnchor !== null;
   }
 
+  get hasActiveNote() {
+    return this.activeNote !== null;
+  }
+
+  get activeNoteName() {
+    if (!this.activeNote) return null;
+    const tuning = this.currentTrack?.staves?.[0]?.stringTuning?.tunings;
+    if (!tuning?.length) return null;
+    const idx = this.stringCount - this.activeNote.string;
+    if (idx < 0 || idx >= tuning.length) return null;
+    const midi = tuning[idx] + (this.activeNote.fret ?? 0);
+    const names = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+    return `${names[midi % 12]}${Math.floor(midi / 12) - 1}`;
+  }
+
   getFirstBeat() {
     const track = this.currentTrack;
     return track?.staves?.[0]?.bars?.[0]?.voices?.[0]?.beats?.[0] || null;
@@ -144,6 +162,22 @@ export class Editor {
     return { vb, tabY, tabH, stringGap };
   }
 
+  #findNoteBounds(beatBounds, note) {
+    if (!note || !beatBounds?.notes) return null;
+    for (const nb of beatBounds.notes) {
+      if (nb.note === note && nb.noteHeadBounds) return nb;
+    }
+    // Fallback: alphaTab may have rebuilt notes — match by string+fret
+    for (const nb of beatBounds.notes) {
+      if (nb.noteHeadBounds && nb.note.string === note.string && nb.note.fret === note.fret) return nb;
+    }
+    // Last resort: match by string only
+    for (const nb of beatBounds.notes) {
+      if (nb.noteHeadBounds && nb.note.string === note.string) return nb;
+    }
+    return null;
+  }
+
   updateOverlay() {
     const api = this.#engine.api;
     const beat = this.currentActiveBeat;
@@ -156,6 +190,14 @@ export class Editor {
     }
 
     try {
+      const beatBounds = api.boundsLookup.findBeat(beat);
+      if (!beatBounds?.visualBounds) {
+        this.beatCursorBox = null;
+        this.cursorBox = null;
+        this.selectionBoxes = [];
+        return;
+      }
+
       const info = this.#getTabStaffInfo(beat);
       if (!info) {
         this.beatCursorBox = null;
@@ -174,17 +216,30 @@ export class Editor {
         h: tabH + 8,
       };
 
-      // 2. Note/string indicator — single row on the active string
-      const activeStr = this.activeNote?.string ?? this.activeString;
-      const clampedStr = Math.min(Math.max(activeStr, 1), this.stringCount);
-      const stringY = tabY + (clampedStr - 1) * stringGap;
-
-      this.cursorBox = {
-        x: vb.x - 3,
-        y: stringY - 9,
-        w: Math.max(vb.w + 6, 20),
-        h: 18,
-      };
+      // 2. Note indicator — snap to the actual notehead in standard notation
+      const noteBounds = this.#findNoteBounds(beatBounds, this.activeNote);
+      if (noteBounds?.noteHeadBounds) {
+        const nb = noteBounds.noteHeadBounds;
+        this.cursorBox = {
+          x: nb.x - 4,
+          y: nb.y - 4,
+          w: Math.max(nb.w + 8, 22),
+          h: Math.max(nb.h + 8, 20),
+        };
+      } else if (this.activeNote) {
+        // Fallback: place cursor at the beat's onNotesX on the active string row
+        const activeStr = this.activeNote.string ?? this.activeString;
+        const clampedStr = Math.min(Math.max(activeStr, 1), this.stringCount);
+        const stringY = tabY + (clampedStr - 1) * stringGap;
+        this.cursorBox = {
+          x: (beatBounds.onNotesX ?? vb.x) - 4,
+          y: stringY - 9,
+          w: Math.max(vb.w + 6, 20),
+          h: 18,
+        };
+      } else {
+        this.cursorBox = null;
+      }
 
       // 3. Selection range boxes (multi-beat highlight)
       const selected = this.getSelectedBeats();
@@ -270,35 +325,33 @@ export class Editor {
     this.updateOverlay();
   }
 
-  // Move note target to next/prev existing note within current beat (by string)
+  // Move note target to next/prev existing note within current beat (alphaTab order)
   moveNote(delta) {
-    const notes = this.beatNotes;
-    if (!notes.length) {
-      this.activeNote = null;
+    const notes = this.currentActiveBeat?.notes;
+    if (!notes?.length) return;
+
+    const idx = notes.indexOf(this.activeNote);
+    if (idx === -1) {
+      this.activeNote = notes[0];
+      this.activeString = notes[0].string;
       this.updateOverlay();
       return;
     }
-    const idx = notes.indexOf(this.activeNote);
-    let next;
-    if (idx === -1) {
-      next = delta > 0 ? notes[0] : notes[notes.length - 1];
-    } else {
-      next = notes[Math.min(Math.max(idx + delta, 0), notes.length - 1)];
-    }
-    this.activeNote = next;
-    if (next) this.activeString = next.string;
+
+    const nextIdx = idx + delta;
+    if (nextIdx < 0 || nextIdx >= notes.length) return;
+
+    this.activeNote = notes[nextIdx];
+    this.activeString = notes[nextIdx].string;
     this.updateOverlay();
   }
 
-  // Change the active string target — pure cursor move, NO selection side effects
+  // Move cursor position to different string (where next note goes)
   moveString(delta) {
     const next = Math.min(Math.max(this.activeString + delta, 1), this.stringCount);
+    if (next === this.activeString) return;
     this.activeString = next;
-    // If there's a note on this string, highlight it; otherwise no active note
-    const noteOnStr = this.currentActiveBeat?.notes?.find((n) => n.string === next);
-    this.activeNote = noteOnStr || null;
     this.updateOverlay();
-    this.#engine.ping();
   }
 
   // ── Note Editing ─────────────────────────────────────────────────────────────
@@ -306,21 +359,24 @@ export class Editor {
   addNote() {
     const beat = this.currentActiveBeat;
     if (!beat) return;
-    this.#project.history.snapshot();
 
-    // Use activeString as target; if a note already exists there, select it
-    let note = beat.notes?.find((n) => n.string === this.activeString);
-    if (note) {
-      this.activeNote = note;
+    // Already a note here — just select it
+    const existing = beat.notes?.find((n) => n.string === this.activeString);
+    if (existing) {
+      this.activeNote = existing;
+      this.#lastFret = existing.fret ?? 0;
       this.updateOverlay();
       return;
     }
 
-    note = new alphaTab.model.Note();
+    this.#project.history.snapshot();
+
+    const note = new alphaTab.model.Note();
     note.string = this.activeString;
-    note.fret = this.activeNote?.fret ?? 0;
+    note.fret = this.activeNote?.fret ?? this.#lastFret;
     beat.addNote(note);
     this.activeNote = note;
+    this.#lastFret = note.fret;
 
     this.#finishAndUpdate();
   }
@@ -338,12 +394,26 @@ export class Editor {
   changeFret(delta) {
     if (!this.currentActiveBeat) return;
     if (!this.activeNote) {
-      this.addNote();
-      if (!this.activeNote) return;
+      // Ensure a note exists without double-snapshotting
+      const beat = this.currentActiveBeat;
+      let note = beat.notes?.find((n) => n.string === this.activeString);
+      if (!note) {
+        this.#project.history.snapshot();
+        note = new alphaTab.model.Note();
+        note.string = this.activeString;
+        note.fret = this.#lastFret;
+        beat.addNote(note);
+        this.activeNote = note;
+        this.#lastFret = note.fret;
+      } else {
+        this.activeNote = note;
+        this.#lastFret = note.fret ?? 0;
+      }
     }
     const nextFret = Math.max(0, Math.min(24, (this.activeNote.fret ?? 0) + delta));
     this.#project.history.snapshot();
     this.activeNote.fret = nextFret;
+    this.#lastFret = nextFret;
     this.#finishAndUpdate();
   }
 
@@ -366,7 +436,9 @@ export class Editor {
     }
 
     this.selectionAnchor = null;
-    this.#finishAndUpdate();
+    try { this.score?.finish(); } catch (e) { console.warn("alphaTab finish:", e); }
+    this.#project.hasUnsavedChanges = true;
+    this.#engine.requestUpdate();
     this.selectBeat(newBeat);
   }
 
@@ -479,7 +551,6 @@ export class Editor {
   // ── Internal ─────────────────────────────────────────────────────────────────
 
   #finishAndUpdate() {
-    try { this.score?.finish(); } catch (e) { console.warn("alphaTab finish:", e); }
     this.#project.hasUnsavedChanges = true;
     this.updateOverlay();
     this.#engine.requestUpdate();

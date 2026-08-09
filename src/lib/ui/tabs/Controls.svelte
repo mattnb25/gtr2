@@ -4,15 +4,16 @@
 </script>
 
 <!--
-  Controls tab: Beat/Subnote editing structure.
+  Controls tab
 
   Hierarchy:
-    Beat Nav  → moves the beat cursor (clears selection)
-    String    → moves the string target cursor only (never touches selection)
-    Note Edit → edits the note at [current beat × current string]
-    Beat Edit → inserts/removes beats and bars
-    Selection → multi-beat range for copy/paste
-    Clipboard → copy/paste selected beat(s)
+    Beat Nav   → moves the beat cursor (clears selection)
+    String     → moves cursor position (where next note goes)
+    Note Nav   → cycles through notes in the beat
+    Note Edit  → add / delete notes
+    Beat Edit  → inserts/removes beats and bars
+    Selection  → multi-beat range for copy/paste
+    Clipboard  → copy/paste selected beat(s)
 -->
 
 <div class="controls-toolbar">
@@ -26,26 +27,25 @@
 
   <div class="divider"></div>
 
-  <!-- ── String Target ──────────────────────────────── -->
-  <!--  Moving string only repositions the note cursor.  -->
-  <!--  It does NOT change the selected beat(s).         -->
+  <!-- ── String (cursor position) ──────────────────── -->
   <div class="group">
     <span class="group-label">String</span>
-    <button onclick={() => ed.moveString(-1)} title="String up — moves note cursor to next higher string">▲</button>
-    <button onclick={() => ed.moveString(1)}  title="String down — moves note cursor to next lower string">▼</button>
-    <span class="info" title="Current string target">str {ed.activeString}</span>
+    <button onclick={() => ed.moveString(-1)} title="Move cursor to higher string">▲</button>
+    <button onclick={() => ed.moveString(1)}  title="Move cursor to lower string">▼</button>
+    <span class="info" title="Current string">str {ed.activeString}</span>
   </div>
 
   <div class="divider"></div>
 
   <!-- ── Note Editing ────────────────────────────────── -->
-  <!--  Operates on: current beat × current string.      -->
   <div class="group">
     <span class="group-label">Note</span>
-    <button onclick={() => ed.addNote()}     title="Add/select note on active string (Enter)">+ Note</button>
-    <button onclick={() => ed.changeFret(1)} title="Raise fret (+)">+ Fret</button>
-    <button onclick={() => ed.changeFret(-1)} title="Lower fret (-)">- Fret</button>
-    <button onclick={() => ed.deleteNote()}  title="Delete note (Del)">Del</button>
+    <button onclick={() => ed.moveNote(-1)} disabled={!ed.beatNotes.length} title="Prev note in beat (↑)">▲</button>
+    <button onclick={() => ed.moveNote(1)}  disabled={!ed.beatNotes.length} title="Next note in beat (↓)">▼</button>
+    <button onclick={() => ed.changeFret(1)} disabled={!ed.hasActiveNote} title="Pitch up (+)">+</button>
+    <button onclick={() => ed.changeFret(-1)} disabled={!ed.hasActiveNote} title="Pitch down (-)">-</button>
+    <button onclick={() => ed.addNote()}     title="Add note and advance string (Enter)">+ Note</button>
+    <button onclick={() => ed.deleteNote()}  disabled={!ed.hasActiveNote} title="Delete note (Del)">Del</button>
   </div>
 
   <div class="divider"></div>

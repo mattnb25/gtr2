@@ -7,7 +7,6 @@ to do:
 
 ### (far future)
 
-- basic pitch auto write on current and new from audio
 - export and import music xml or midi
 - trainer w/ and without pitch api
 - custom audio tracks for transcription
