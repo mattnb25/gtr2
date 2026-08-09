@@ -346,12 +346,19 @@ export class Editor {
     this.updateOverlay();
   }
 
-  // Move cursor position to different string (where next note goes)
+  // Move cursor position to different string
   moveString(delta) {
     const next = Math.min(Math.max(this.activeString + delta, 1), this.stringCount);
     if (next === this.activeString) return;
-    this.activeString = next;
-    this.updateOverlay();
+    if (this.activeNote) {
+      this.#project.history.snapshot();
+      this.activeNote.string = next;
+      this.activeString = next;
+      this.#finishAndUpdate();
+    } else {
+      this.activeString = next;
+      this.updateOverlay();
+    }
   }
 
   // ── Note Editing ─────────────────────────────────────────────────────────────
@@ -359,15 +366,6 @@ export class Editor {
   addNote() {
     const beat = this.currentActiveBeat;
     if (!beat) return;
-
-    // Already a note here — just select it
-    const existing = beat.notes?.find((n) => n.string === this.activeString);
-    if (existing) {
-      this.activeNote = existing;
-      this.#lastFret = existing.fret ?? 0;
-      this.updateOverlay();
-      return;
-    }
 
     this.#project.history.snapshot();
 
@@ -436,10 +434,9 @@ export class Editor {
     }
 
     this.selectionAnchor = null;
-    try { this.score?.finish(); } catch (e) { console.warn("alphaTab finish:", e); }
-    this.#project.hasUnsavedChanges = true;
-    this.#engine.requestUpdate();
-    this.selectBeat(newBeat);
+    this.#finishAndUpdate();
+    const resolved = beat.voice.beats[idx + 1] || beat.voice.beats[beat.voice.beats.length - 1];
+    if (resolved) this.selectBeat(resolved);
   }
 
   addBar() {
@@ -470,10 +467,10 @@ export class Editor {
     newVoice.addBeat(newBeat);
 
     this.selectionAnchor = null;
-    this.score.finish();
-    this.#project.hasUnsavedChanges = true;
-    this.selectBeat(newBeat);
-    this.#engine.requestUpdate();
+    this.#finishAndUpdate();
+    const resolvedStaff = currentStaff.bars?.[currentStaff.bars.length - 1];
+    const resolvedBeat = resolvedStaff?.voices?.[0]?.beats?.[0];
+    if (resolvedBeat) this.selectBeat(resolvedBeat);
   }
 
   // ── Copy / Paste / Cut ───────────────────────────────────────────────────────
@@ -495,7 +492,6 @@ export class Editor {
 
     const voice = startBeat.voice;
     let insertIdx = voice.beats.indexOf(startBeat);
-    let lastInserted = null;
 
     for (const clip of this.clipboard) {
       const newBeat = new alphaTab.model.Beat();
@@ -516,14 +512,12 @@ export class Editor {
         voice.addBeat(newBeat);
         insertIdx = voice.beats.length - 1;
       }
-      lastInserted = newBeat;
     }
 
     this.selectionAnchor = null;
-    this.score?.finish();
-    this.#project.hasUnsavedChanges = true;
-    if (lastInserted) this.selectBeat(lastInserted);
-    this.#engine.requestUpdate();
+    this.#finishAndUpdate();
+    const resolved = voice.beats[insertIdx] || voice.beats[voice.beats.length - 1];
+    if (resolved) this.selectBeat(resolved);
   }
 
   cut() {
@@ -551,7 +545,33 @@ export class Editor {
   // ── Internal ─────────────────────────────────────────────────────────────────
 
   #finishAndUpdate() {
+    const beat = this.activeBeat;
+    const note = this.activeNote;
+    const savedString = this.activeString;
+    let beatIdx = -1;
+    let noteString = note?.string;
+    let noteFret = note?.fret;
+    if (beat?.voice?.beats) beatIdx = beat.voice.beats.indexOf(beat);
+
     this.#project.hasUnsavedChanges = true;
+    try { this.score?.finish(); } catch (e) { console.warn("alphaTab finish:", e); }
+
+    // Re-sync player MIDI with the updated score so playback reflects edits
+    try { this.#engine.api?.loadMidiForScore(); } catch (e) { console.warn("loadMidiForScore:", e); }
+
+    // Re-resolve activeBeat from the rebuilt model
+    if (beatIdx !== -1 && beat?.voice?.beats && beatIdx < beat.voice.beats.length) {
+      this.activeBeat = beat.voice.beats[beatIdx];
+    }
+    // Re-resolve activeNote by string+fret on the beat
+    if (this.activeBeat?.notes && noteString != null) {
+      this.activeNote = this.activeBeat.notes.find(
+        (n) => n.string === noteString && n.fret === noteFret
+      ) || this.activeBeat.notes.find((n) => n.string === noteString)
+      || null;
+    }
+    this.activeString = savedString;
+
     this.updateOverlay();
     this.#engine.requestUpdate();
   }

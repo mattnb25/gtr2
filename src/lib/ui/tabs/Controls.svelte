@@ -8,7 +8,7 @@
 
   Hierarchy:
     Beat Nav   → moves the beat cursor (clears selection)
-    String     → moves cursor position (where next note goes)
+    String     → changes the selected note's string
     Note Nav   → cycles through notes in the beat
     Note Edit  → add / delete notes
     Beat Edit  → inserts/removes beats and bars
@@ -27,11 +27,11 @@
 
   <div class="divider"></div>
 
-  <!-- ── String (cursor position) ──────────────────── -->
+  <!-- ── String (selected note's string) ────────────── -->
   <div class="group">
     <span class="group-label">String</span>
-    <button onclick={() => ed.moveString(-1)} title="Move cursor to higher string">▲</button>
-    <button onclick={() => ed.moveString(1)}  title="Move cursor to lower string">▼</button>
+    <button onclick={() => ed.moveString(-1)} disabled={!ed.hasActiveNote} title="Move note to higher string">▲</button>
+    <button onclick={() => ed.moveString(1)}  disabled={!ed.hasActiveNote} title="Move note to lower string">▼</button>
     <span class="info" title="Current string">str {ed.activeString}</span>
   </div>
 

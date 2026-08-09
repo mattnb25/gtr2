@@ -3,13 +3,8 @@ to do:
 
 ### (Next up)
 
-- **Input:** beat/notenavigation, String Navigation, Delete, selection w/ loops, copy/paste.
-
-### (far future)
-
-- export and import music xml or midi
-- trainer w/ and without pitch api
-- custom audio tracks for transcription
+- import music xml
+- trainer w/loops
 
 ### 🎸 Track (Instrumentation)
 
