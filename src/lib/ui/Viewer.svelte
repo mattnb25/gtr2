@@ -4,6 +4,7 @@
 
   let canvasEl = $state(null);
   let ed = $derived(project.editor);
+  let beatCursor = $derived(ed.beatCursorBox);
   let cursor = $derived(ed.cursorBox);
   let selBoxes = $derived(ed.selectionBoxes);
 
@@ -17,6 +18,14 @@
 <div class="viewer-container">
   <div class="canvas" bind:this={canvasEl}></div>
 
+  <!-- Beat column indicator -->
+  {#if beatCursor}
+    <div
+      class="beat-cursor"
+      style="left: {beatCursor.x}px; top: {beatCursor.y}px; width: {beatCursor.w}px; height: {beatCursor.h}px;"
+    ></div>
+  {/if}
+
   <!-- Range selection boxes -->
   {#each selBoxes as box}
     <div
@@ -25,15 +34,12 @@
     ></div>
   {/each}
 
-  <!-- Active note/string cursor box -->
+  <!-- Note/string target cursor -->
   {#if cursor}
-    <div class="cursor-overlay">
-      <div class="cursor-label">{ed.cursorLabel}</div>
-      <div
-        class="note-cursor"
-        style="left: {cursor.x}px; top: {cursor.y}px; width: {cursor.w}px; height: {cursor.h}px;"
-      ></div>
-    </div>
+    <div
+      class="note-cursor"
+      style="left: {cursor.x}px; top: {cursor.y}px; width: {cursor.w}px; height: {cursor.h}px;"
+    ></div>
   {/if}
 </div>
 
@@ -51,6 +57,16 @@
     min-height: 100%;
   }
 
+  .beat-cursor {
+    position: absolute;
+    background: rgba(90, 110, 224, 0.07);
+    border-left: 2px solid rgba(90, 110, 224, 0.35);
+    border-right: 2px solid rgba(90, 110, 224, 0.35);
+    pointer-events: none;
+    z-index: 4;
+    transition: all 0.05s ease-out;
+  }
+
   .selection-range-box {
     position: absolute;
     background: rgba(90, 110, 224, 0.18);
@@ -60,26 +76,7 @@
     z-index: 5;
   }
 
-  .cursor-overlay {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 10;
-  }
 
-  .cursor-label {
-    position: absolute;
-    top: var(--spacing-sm);
-    left: var(--spacing-sm);
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.95);
-    border: 1px solid var(--color-border);
-    color: var(--color-text-dark);
-    font-size: 1.2rem;
-    font-weight: 600;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  }
 
   .note-cursor {
     position: absolute;

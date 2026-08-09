@@ -3,7 +3,7 @@ to do:
 
 ### (Next up)
 
-- **Input:** Fret Numpad, String Navigation, Delete, selection w/ loops, copy/paste.
+- **Input:** beat/notenavigation, String Navigation, Delete, selection w/ loops, copy/paste.
 
 ### (far future)
 
