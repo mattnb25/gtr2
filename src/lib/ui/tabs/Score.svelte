@@ -19,10 +19,12 @@
         "music",
         "copyright",
     ];
+
+    const barCount = $derived(project.editor.score?.masterBars?.length ?? 1);
 </script>
 
 <PopoverBtn name="open">
-    <div class="header">Guitar Pro/AlphaTex</div>
+    <div class="header">Guitar Pro / AlphaTex / MusicXML</div>
     <button onclick={handleOpen}>Open</button>
     <button onclick={() => project.io.newFile()}>New</button>
 </PopoverBtn>
@@ -34,7 +36,7 @@
         if (e.target.files[0]) project.io.loadFileData(e.target.files[0]);
         e.target.value = "";
     }}
-    accept=".gp,.gp3,.gp4,.gp5,.gpx,.atex"
+    accept=".gp,.gp3,.gp4,.gp5,.gpx,.atex,.xml,.mxl,.musicxml"
     style="display: none;"
 />
 
@@ -78,6 +80,32 @@
             project.editor.updateSettingsField("display", "scale", zoomLevel);
         }}
     />
+</PopoverBtn>
+
+<PopoverBtn name="trainer">
+    <div class="header">Loop Trainer</div>
+    <Switch
+        label="Loop playback"
+        checked={project.playback.isLooping}
+        onchange={(e) => project.playback.toggleLoop(e.target.checked)}
+    />
+    <div class="header">Start bar</div>
+    <NumInput
+        min={1}
+        max={barCount}
+        step={1}
+        value={project.playback.loopStartBar}
+        callback={(val) => project.playback.setLoop(val, project.playback.loopEndBar)}
+    />
+    <div class="header">End bar</div>
+    <NumInput
+        min={1}
+        max={barCount}
+        step={1}
+        value={project.playback.loopEndBar}
+        callback={(val) => project.playback.setLoop(project.playback.loopStartBar, val)}
+    />
+    <button onclick={() => project.playback.toggleLoop(false)}>Clear loop</button>
 </PopoverBtn>
 
 <button

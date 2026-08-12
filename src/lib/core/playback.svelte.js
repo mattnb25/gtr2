@@ -11,6 +11,9 @@ export class Playback {
   metronomeVol = $state(1.0);
   isMetronomeActive = $state(false);
   isCountInActive = $state(false);
+  loopStartBar = $state(1);
+  loopEndBar = $state(1);
+  isLooping = $state(false);
 
   constructor(engine) {
     this.#engine = engine;
@@ -41,6 +44,9 @@ export class Playback {
       this.endTime = 0;
       this.isPlaying = false;
       this.isRendered = false;
+      this.isLooping = false;
+      this.loopStartBar = 1;
+      this.loopEndBar = 1;
       this.#engine.ping();
     });
 
@@ -103,5 +109,37 @@ export class Playback {
     this.#engine.api.countInVolume = this.isCountInActive
       ? this.metronomeVol
       : 0;
+  }
+
+  // Loops a bar range [startBar, endBar] (1-based, inclusive) for practice.
+  setLoop(startBar, endBar) {
+    const score = this.#engine.api?.score;
+    if (!score?.masterBars?.length) return;
+    const count = score.masterBars.length;
+    startBar = Math.max(1, Math.min(Math.round(startBar), count));
+    endBar = Math.max(startBar, Math.min(Math.round(endBar), count));
+
+    let startTick = 0;
+    for (let i = 0; i < startBar - 1; i++) startTick += score.masterBars[i].calculateDuration();
+    let endTick = startTick;
+    for (let i = startBar - 1; i < endBar; i++) endTick += score.masterBars[i].calculateDuration();
+
+    this.loopStartBar = startBar;
+    this.loopEndBar = endBar;
+    this.isLooping = true;
+    this.#engine.api.playbackRange = { startTick, endTick };
+    this.#engine.api.isLooping = true;
+    this.#engine.ping();
+  }
+
+  toggleLoop(on) {
+    if (on ?? !this.isLooping) {
+      this.setLoop(this.loopStartBar, this.loopEndBar);
+    } else {
+      this.isLooping = false;
+      this.#engine.api.isLooping = false;
+      this.#engine.api.playbackRange = null;
+      this.#engine.ping();
+    }
   }
 }

@@ -6,7 +6,7 @@
   let ed = $derived(project.editor);
 
   function handleKeydown(e) {
-    if (["INPUT", "TEXTAREA"].includes(e.target?.tagName)) return;
+    if (["INPUT", "TEXTAREA", "SELECT"].includes(e.target?.tagName)) return;
 
     if (e.key === "ArrowLeft") {
       e.preventDefault();
@@ -49,6 +49,12 @@
     } else if (e.key === "Insert" || (e.ctrlKey && e.key === "a")) {
       e.preventDefault();
       ed.addBeat();
+    } else if (e.ctrlKey && e.key === "Delete") {
+      e.preventDefault();
+      ed.deleteBeat();
+    } else if (e.ctrlKey && e.key === "Backspace") {
+      e.preventDefault();
+      ed.deleteBar();
     } else if (e.ctrlKey && e.key === "b") {
       e.preventDefault();
       ed.addBar();

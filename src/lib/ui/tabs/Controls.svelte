@@ -11,7 +11,8 @@
     String     → changes the selected note's string
     Note Nav   → cycles through notes in the beat
     Note Edit  → add / delete notes
-    Beat Edit  → inserts/removes beats and bars
+    Insert     → inserts beats and bars
+    Remove     → deletes beats and bars
     Selection  → multi-beat range for copy/paste
     Clipboard  → copy/paste selected beat(s)
 -->
@@ -55,6 +56,15 @@
     <span class="group-label">Insert</span>
     <button onclick={() => ed.addBeat()} title="Insert beat after current (Insert)">+ Beat</button>
     <button onclick={() => ed.addBar()}  title="Append bar">+ Bar</button>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ── Remove Structure ───────────────────────────── -->
+  <div class="group">
+    <span class="group-label">Remove</span>
+    <button onclick={() => ed.deleteBeat()} title="Delete current beat (Ctrl+Del)">− Beat</button>
+    <button onclick={() => ed.deleteBar()} title="Delete current bar (Ctrl+Backspace)">− Bar</button>
   </div>
 
   <div class="divider"></div>

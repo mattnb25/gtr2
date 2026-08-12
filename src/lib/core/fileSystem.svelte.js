@@ -40,6 +40,12 @@ export class FileSystem {
             description: "AlphaTex Files",
             accept: { "text/x-alphatex": [".atex"] },
           },
+          {
+            description: "MusicXML Files",
+            accept: {
+              "application/vnd.recordare.musicxml": [".xml", ".mxl", ".musicxml"],
+            },
+          },
         ],
         multiple: false,
       });

@@ -3,17 +3,11 @@ to do:
 
 ### (Next up)
 
-- import music xml
-- trainer w/loops
-
-### 🎸 Track (Instrumentation)
-
-- **Voices:** Presets, String Count (4–8), Custom String Pitches.
-- **Management:** Add, Remove, Rename.
-- **Mixer:** Mute, Solo, Visibility (👁).
-- **Instrument:** MIDI Program Selector. (Standard/Tab) view
-- **Tuning:** Presets, String Count (4–8), Custom String Pitches.
-- **Staves:** add linked staves
+- test import music xml, drum editor, and intrument sound change
+- metronome trainer needs increase tempo by ?bpm after ? repeats (maybe pitch api too, if not just move as loop option to playback options)
+- scroll broken
+- lag on many track load and view toggle (maybe only put in view active tracks that play audio)
+- horizontal multitrack broken
 
 ---
 

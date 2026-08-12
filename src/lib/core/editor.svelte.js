@@ -1,4 +1,5 @@
 import * as alphaTab from "@coderline/alphatab";
+import { DRUM_KIT } from "./drums.svelte.js";
 
 export class Editor {
   #engine;
@@ -8,6 +9,13 @@ export class Editor {
   activeNote = $state(null);
   activeString = $state(1);
 
+  // Drum kit: which percussion articulation a new drum note uses
+  drumSlot = $state(0);
+  drumKit = DRUM_KIT;
+
+  // Which track is currently being edited
+  selectedTrackIndex = $state(0);
+
   // Selection: null means no range, otherwise {anchor, active} are beat objects
   selectionAnchor = $state(null);
 
@@ -15,6 +23,9 @@ export class Editor {
 
   // Remembers last fret used so addNote can repeat it
   #lastFret = 0;
+
+  // Whether the current render is filtered to visible tracks only
+  #renderFilterActive = false;
 
   // Two separate visual indicators:
   beatCursorBox = $state(null);  // full-column highlight for the current beat
@@ -51,6 +62,9 @@ export class Editor {
     });
 
     api.scoreLoaded?.on(() => {
+      this.selectedTrackIndex = 0;
+      this.#renderFilterActive = false;
+      this.#applyVisibility();
       const firstBeat = this.getFirstBeat();
       if (firstBeat) this.selectBeat(firstBeat);
     });
@@ -65,7 +79,8 @@ export class Editor {
 
   get currentTrack() {
     this.#engine.currentTick;
-    return this.#engine.api?.score?.tracks?.[0] || null;
+    const tracks = this.#engine.api?.score?.tracks;
+    return tracks?.[this.selectedTrackIndex] || null;
   }
 
   get tracks() {
@@ -79,7 +94,8 @@ export class Editor {
   }
 
   get stringCount() {
-    return this.currentTrack?.staves?.[0]?.stringTuning?.tunings?.length || 6;
+    const tunings = this.currentTrack?.staves?.[0]?.stringTuning?.tunings;
+    return tunings ? tunings.length : 6;
   }
 
   get beatNotes() {
@@ -348,6 +364,14 @@ export class Editor {
 
   // Move cursor position to different string
   moveString(delta) {
+    const staff = this.currentActiveBeat?.voice?.bar?.staff;
+    if (staff?.isPercussion) {
+      const len = this.drumKit.length;
+      if (!len) return;
+      this.drumSlot = (this.drumSlot + delta + len) % len;
+      this.#engine.ping();
+      return;
+    }
     const next = Math.min(Math.max(this.activeString + delta, 1), this.stringCount);
     if (next === this.activeString) return;
     if (this.activeNote) {
@@ -361,11 +385,22 @@ export class Editor {
     }
   }
 
+  setDrumSlot(slot) {
+    if (!this.drumKit.length) return;
+    this.drumSlot = Math.max(0, Math.min(this.drumKit.length - 1, Math.round(slot)));
+    this.#engine.ping();
+  }
+
   // ── Note Editing ─────────────────────────────────────────────────────────────
 
   addNote() {
     const beat = this.currentActiveBeat;
     if (!beat) return;
+    // Percussion staves have no strings/frets — add the selected drum sound
+    if (beat.voice?.bar?.staff?.isPercussion) {
+      this.#addDrumNote(beat);
+      return;
+    }
 
     this.#project.history.snapshot();
 
@@ -376,6 +411,19 @@ export class Editor {
     this.activeNote = note;
     this.#lastFret = note.fret;
 
+    this.#finishAndUpdate();
+  }
+
+  #addDrumNote(beat) {
+    const item = this.drumKit[this.drumSlot];
+    if (!item) return;
+    this.#project.history.snapshot();
+    const note = new alphaTab.model.Note();
+    note.percussionArticulation = item.id;
+    note.string = -1;
+    note.fret = -1;
+    beat.addNote(note);
+    this.activeNote = note;
     this.#finishAndUpdate();
   }
 
@@ -391,6 +439,7 @@ export class Editor {
 
   changeFret(delta) {
     if (!this.currentActiveBeat) return;
+    if (this.currentActiveBeat.voice?.bar?.staff?.isPercussion) return;
     if (!this.activeNote) {
       // Ensure a note exists without double-snapshotting
       const beat = this.currentActiveBeat;
@@ -437,6 +486,80 @@ export class Editor {
     this.#finishAndUpdate();
     const resolved = beat.voice.beats[idx + 1] || beat.voice.beats[beat.voice.beats.length - 1];
     if (resolved) this.selectBeat(resolved);
+  }
+
+  deleteBeat() {
+    const beat = this.activeBeat || this.currentActiveBeat;
+    if (!beat?.voice) return;
+    const voice = beat.voice;
+    const idx = voice.beats.indexOf(beat);
+    if (idx === -1) return;
+    this.#project.history.snapshot();
+
+    const prev = beat.previousBeat;
+    const next = beat.nextBeat;
+    voice.beats.splice(idx, 1);
+    if (prev) prev.nextBeat = next;
+    else if (next) next.previousBeat = null;
+    if (next) next.previousBeat = prev;
+
+    voice.beats.forEach((b, i) => {
+      b.index = i;
+    });
+
+    // A bar with no beats in a voice is invalid — leave a full-bar rest behind
+    if (voice.beats.length === 0) {
+      const rest = new alphaTab.model.Beat();
+      rest.duration = alphaTab.model.Duration.Whole;
+      voice.addBeat(rest);
+    }
+
+    this.selectionAnchor = null;
+    const sel = voice.beats[Math.min(idx, voice.beats.length - 1)] || this.getFirstBeat();
+    this.activeBeat = sel;
+    this.activeNote = null;
+    this.#finishAndUpdate();
+    if (sel) this.selectBeat(sel);
+  }
+
+  deleteBar() {
+    const beat = this.activeBeat || this.currentActiveBeat;
+    const bar = beat?.voice?.bar;
+    const score = this.score;
+    if (!bar || !score || score.masterBars.length <= 1) return;
+    const mbIdx = bar.index;
+    if (mbIdx < 0 || mbIdx >= score.masterBars.length) return;
+    this.#project.history.snapshot();
+    this.selectionAnchor = null;
+
+    // Detach the current beat so #finishAndUpdate does not re-resolve it
+    this.activeBeat = null;
+    this.activeNote = null;
+
+    score.masterBars.splice(mbIdx, 1);
+    score.masterBars.forEach((m, i) => {
+      m.index = i;
+      m.previousMasterBar = i > 0 ? score.masterBars[i - 1] : null;
+      m.nextMasterBar = i < score.masterBars.length - 1 ? score.masterBars[i + 1] : null;
+      const prev = score.masterBars[i - 1];
+      m.start = i === 0 ? 0 : prev.start + (prev.isAnacrusis ? 0 : prev.calculateDuration());
+    });
+
+    for (const track of score.tracks) {
+      for (const staff of track.staves) {
+        staff.bars.splice(mbIdx, 1);
+        staff.bars.forEach((b, i) => {
+          b.index = i;
+          b.previousBar = i > 0 ? staff.bars[i - 1] : null;
+          b.nextBar = i < staff.bars.length - 1 ? staff.bars[i + 1] : null;
+        });
+      }
+    }
+
+    score.rebuildRepeatGroups();
+    this.#finishAndUpdate();
+    const firstBeat = this.getFirstBeat();
+    if (firstBeat) this.selectBeat(firstBeat);
   }
 
   addBar() {
@@ -525,6 +648,300 @@ export class Editor {
     this.deleteNote();
   }
 
+  // ── Track Management ─────────────────────────────────────────────────────────
+
+  selectTrack(index) {
+    const tracks = this.tracks;
+    if (!tracks.length) return;
+    this.selectedTrackIndex = Math.max(0, Math.min(index, tracks.length - 1));
+    this.activeString = Math.min(this.activeString, this.stringCount);
+    this.selectionAnchor = null;
+    const firstBeat = this.getFirstBeat();
+    if (firstBeat) this.selectBeat(firstBeat);
+    this.#engine.ping();
+  }
+
+  addTrack() {
+    const score = this.score;
+    if (!score) return;
+    this.#project.history.snapshot();
+
+    const track = new alphaTab.model.Track();
+    track.name = `Track ${score.tracks.length + 1}`;
+    track.shortName = track.name;
+    track.playbackInfo.volume = 15;
+    track.playbackInfo.program = 24;
+
+    const palette = [
+      [90, 110, 224],
+      [200, 60, 60],
+      [60, 160, 90],
+      [220, 150, 50],
+      [150, 90, 200],
+      [60, 150, 170],
+    ];
+    const [r, g, b] = palette[score.tracks.length % palette.length];
+    track.color = new alphaTab.model.Color(r, g, b, 255);
+
+    const staff = new alphaTab.model.Staff();
+    staff.stringTuning =
+      alphaTab.model.Tuning.getDefaultTuningFor(6) ||
+      new alphaTab.model.Tuning("Guitar", [64, 59, 55, 50, 45, 40], true);
+    staff.showTablature = true;
+    staff.showStandardNotation = true;
+    track.addStaff(staff);
+
+    // Mirror the voice count of the first track
+    const voiceCount = Math.max(
+      1,
+      score.tracks[0]?.staves?.[0]?.bars?.[0]?.voices?.length || 1,
+    );
+    if (score.masterBars.length === 0) {
+      const bar = new alphaTab.model.Bar();
+      staff.addBar(bar);
+      const voice = new alphaTab.model.Voice();
+      bar.addVoice(voice);
+      const beat = new alphaTab.model.Beat();
+      beat.duration = alphaTab.model.Duration.Whole;
+      voice.addBeat(beat);
+    }
+    for (const masterBar of score.masterBars) {
+      const bar = new alphaTab.model.Bar();
+      staff.addBar(bar);
+      for (let v = 0; v < voiceCount; v++) {
+        const voice = new alphaTab.model.Voice();
+        bar.addVoice(voice);
+        const beat = new alphaTab.model.Beat();
+        beat.duration = alphaTab.model.Duration.Whole;
+        voice.addBeat(beat);
+      }
+    }
+
+    score.addTrack(track);
+    this.selectionAnchor = null;
+    this.selectedTrackIndex = score.tracks.length - 1;
+    this.#finishAndUpdate();
+    const firstBeat = this.getFirstBeat();
+    if (firstBeat) this.selectBeat(firstBeat);
+  }
+
+  removeTrack(index) {
+    const score = this.score;
+    if (!score || score.tracks.length <= 1) return;
+    const track = score.tracks[index];
+    if (!track) return;
+    this.#project.history.snapshot();
+
+    score.tracks.splice(index, 1);
+    score.tracks.forEach((t, i) => {
+      t.index = i;
+    });
+
+    if (this.selectedTrackIndex >= score.tracks.length) {
+      this.selectedTrackIndex = score.tracks.length - 1;
+    }
+    this.selectionAnchor = null;
+    this.#finishAndUpdate();
+    const firstBeat = this.getFirstBeat();
+    if (firstBeat) this.selectBeat(firstBeat);
+  }
+
+  renameTrack(index, name) {
+    const track = this.score?.tracks?.[index];
+    if (!track) return;
+    const trimmed = String(name ?? "").trim();
+    if (!trimmed) return;
+    this.#project.history.snapshot();
+    track.name = trimmed;
+    track.shortName = trimmed.slice(0, 10);
+    this.#engine.requestUpdate();
+  }
+
+  toggleTrackMute(index) {
+    const track = this.score?.tracks?.[index];
+    if (!track) return;
+    this.#project.history.snapshot();
+    track.playbackInfo.isMute = !track.playbackInfo.isMute;
+    try {
+      this.#engine.api?.changeTrackMute([track], track.playbackInfo.isMute);
+    } catch {}
+    this.#engine.ping();
+  }
+
+  toggleTrackSolo(index) {
+    const track = this.score?.tracks?.[index];
+    if (!track) return;
+    this.#project.history.snapshot();
+    track.playbackInfo.isSolo = !track.playbackInfo.isSolo;
+    try {
+      this.#engine.api?.changeTrackSolo([track], track.playbackInfo.isSolo);
+    } catch {}
+    this.#engine.ping();
+  }
+
+  toggleTrackVisible(index) {
+    const track = this.score?.tracks?.[index];
+    if (!track) return;
+    this.#project.history.snapshot();
+    track.isVisibleOnMultiTrack = !track.isVisibleOnMultiTrack;
+    this.#finishRender();
+    this.#engine.ping();
+  }
+
+  getTrackVoiceCount(index) {
+    const track = this.score?.tracks?.[index];
+    return track?.staves?.[0]?.bars?.[0]?.voices?.length || 1;
+  }
+
+  setTrackVoiceCount(index, count) {
+    const track = this.score?.tracks?.[index];
+    if (!track || !track.staves?.length) return;
+    count = Math.max(1, Math.min(4, Math.round(count)));
+    this.#project.history.snapshot();
+    for (const staff of track.staves) {
+      for (const bar of staff.bars) {
+        while (bar.voices.length < count) {
+          const voice = new alphaTab.model.Voice();
+          bar.addVoice(voice);
+          const beat = new alphaTab.model.Beat();
+          beat.duration = alphaTab.model.Duration.Whole;
+          voice.addBeat(beat);
+        }
+        while (bar.voices.length > count) {
+          bar.voices.pop();
+        }
+      }
+    }
+    this.#finishAndUpdate();
+  }
+
+  // ── Track Instrumentation ─────────────────────────────────────────────────────
+
+  isTrackDrum(index) {
+    return !!this.score?.tracks?.[index]?.staves?.[0]?.isPercussion;
+  }
+
+  getTrackStaffMode(index) {
+    const staff = this.score?.tracks?.[index]?.staves?.[0];
+    if (!staff) return "tab";
+    if (staff.isPercussion) return "drum";
+    return staff.showTablature ? "tab" : "standard";
+  }
+
+  setTrackStaffMode(index, mode) {
+    const track = this.score?.tracks?.[index];
+    const staff = track?.staves?.[0];
+    if (!track || !staff) return;
+    if (mode === this.getTrackStaffMode(index)) return;
+    this.#project.history.snapshot();
+
+    if (mode === "drum") {
+      staff.isPercussion = true;
+      staff.showTablature = false;
+      staff.showStandardNotation = true;
+      staff.stringTuning = new alphaTab.model.Tuning("", [], false);
+      for (const bar of staff.bars) {
+        bar.clef = alphaTab.model.Clef.Neutral;
+        for (const voice of bar.voices) {
+          for (const beat of voice.beats) {
+            for (const note of beat.notes || []) {
+              note.percussionArticulation = note.percussionArticulation < 0 ? 36 : note.percussionArticulation;
+              note.string = -1;
+              note.fret = -1;
+            }
+          }
+        }
+      }
+    } else {
+      staff.isPercussion = false;
+      staff.showStandardNotation = true;
+      staff.showTablature = mode !== "standard";
+      if (!staff.stringTuning?.tunings?.length) {
+        staff.stringTuning = alphaTab.model.Tuning.getDefaultTuningFor(6) ||
+          new alphaTab.model.Tuning("Guitar Standard Tuning", [64, 59, 55, 50, 45, 40], true);
+      }
+      for (const bar of staff.bars) {
+        bar.clef = alphaTab.model.Clef.G2;
+        for (const voice of bar.voices) {
+          for (const beat of voice.beats) {
+            for (const note of beat.notes || []) {
+              note.percussionArticulation = -1;
+              if (note.string < 0) note.string = 1;
+              if (note.fret < 0) note.fret = 0;
+            }
+          }
+        }
+      }
+    }
+    this.#finishAndUpdate();
+  }
+
+  getTrackProgram(index) {
+    return this.score?.tracks?.[index]?.playbackInfo?.program ?? 0;
+  }
+
+  setTrackProgram(index, program) {
+    const track = this.score?.tracks?.[index];
+    if (!track || this.isTrackDrum(index)) return;
+    this.#project.history.snapshot();
+    track.playbackInfo.program = Math.max(0, Math.min(127, Math.round(program)));
+    this.#finishAndUpdate();
+  }
+
+  getTrackTuning(index) {
+    return this.score?.tracks?.[index]?.staves?.[0]?.stringTuning || null;
+  }
+
+  getTrackStringCount(index) {
+    const tunings = this.getTrackTuning(index)?.tunings;
+    return tunings ? tunings.length : 6;
+  }
+
+  setTrackStringCount(index, count) {
+    const staff = this.score?.tracks?.[index]?.staves?.[0];
+    const tuning = staff?.stringTuning;
+    if (!tuning || staff.isPercussion) return;
+    count = Math.max(4, Math.min(8, Math.round(count)));
+    const current = [...(tuning.tunings || [])];
+    if (current.length === count) return;
+    this.#project.history.snapshot();
+    if (count > current.length) {
+      // Append new strings below the current lowest (end of array)
+      let pitch = (current.length ? current[current.length - 1] : 40) - 5;
+      const added = [];
+      while (added.length < count - current.length) {
+        added.push(Math.max(24, pitch));
+        pitch -= 5;
+      }
+      tuning.tunings = [...current, ...added];
+    } else {
+      // Drop the lowest strings (tail of array)
+      tuning.tunings = current.slice(0, count);
+    }
+    tuning.name = "Custom";
+    this.#retuneStaffNotes(staff, current, tuning.tunings);
+    this.#finishAndUpdate();
+  }
+
+  setTrackStringPitch(index, stringIndex, midi) {
+    const staff = this.score?.tracks?.[index]?.staves?.[0];
+    const tuning = staff?.stringTuning;
+    if (!tuning || staff.isPercussion) return;
+    stringIndex = Math.round(stringIndex);
+    if (stringIndex < 0 || stringIndex >= (tuning.tunings?.length || 0)) return;
+    midi = Math.max(24, Math.min(84, Math.round(midi)));
+    if (tuning.tunings[stringIndex] === midi) return;
+    this.#project.history.snapshot();
+    const oldTunings = [...tuning.tunings];
+    const pitches = [...oldTunings];
+    pitches[stringIndex] = midi;
+    tuning.tunings = pitches;
+    tuning.name = "Custom";
+    // Preserve the sounded pitch: recompute frets so notes don't change key
+    this.#retuneStaffNotes(staff, oldTunings, tuning.tunings);
+    this.#finishAndUpdate();
+  }
+
   // ── Score Field Helpers ───────────────────────────────────────────────────────
 
   updateScoreField(field, value) {
@@ -544,6 +961,47 @@ export class Editor {
 
   // ── Internal ─────────────────────────────────────────────────────────────────
 
+  // Preserves the sounded pitch of every note when a staff's tuning changes:
+  // frets are recomputed from the old tuning snapshot. Notes that can no
+  // longer be fretted within 0–24 are removed.
+  #retuneStaffNotes(staff, oldTunings, newTunings) {
+    if (!staff?.bars || staff.isPercussion) return;
+    const oldCount = oldTunings.length;
+    const newCount = newTunings.length;
+    if (!oldCount) return;
+    const shift = newCount - oldCount;
+    for (const bar of staff.bars) {
+      for (const voice of bar.voices) {
+        for (const beat of voice.beats) {
+          const toRemove = [];
+          for (const note of beat.notes || []) {
+            if (note.string < 1 || note.string > oldCount) continue;
+            const fret = note.fret > -1 ? note.fret : 0;
+            const pitch = oldTunings[oldCount - note.string] + fret;
+            // Strings are numbered 1 (lowest)..N (highest). Adding strings
+            // appends below the lowest, removing drops the lowest ones.
+            let newString = note.string + shift;
+            if (newString < 1) newString = 1;
+            if (newString > newCount) continue;
+            const newFret = pitch - newTunings[newCount - newString];
+            if (newFret >= 0 && newFret <= 24) {
+              note.string = newString;
+              note.fret = newFret;
+            } else {
+              toRemove.push(note);
+            }
+          }
+          for (const note of toRemove) beat.removeNote(note);
+          // alphaTab caches notes per string — keep it in sync after retuning
+          if (beat.noteStringLookup) {
+            beat.noteStringLookup.clear();
+            for (const n of beat.notes) if (n.isStringed) beat.noteStringLookup.set(n.string, n);
+          }
+        }
+      }
+    }
+  }
+
   #finishAndUpdate() {
     const beat = this.activeBeat;
     const note = this.activeNote;
@@ -559,6 +1017,9 @@ export class Editor {
     // Re-sync player MIDI with the updated score so playback reflects edits
     try { this.#engine.api?.loadMidiForScore(); } catch (e) { console.warn("loadMidiForScore:", e); }
 
+    // Re-apply mute/solo to the player channels (they reset when MIDI reloads)
+    this.#syncPlaybackState();
+
     // Re-resolve activeBeat from the rebuilt model
     if (beatIdx !== -1 && beat?.voice?.beats && beatIdx < beat.voice.beats.length) {
       this.activeBeat = beat.voice.beats[beatIdx];
@@ -573,6 +1034,58 @@ export class Editor {
     this.activeString = savedString;
 
     this.updateOverlay();
-    this.#engine.requestUpdate();
+    this.#finishRender();
+  }
+
+  // ── Internal helpers ─────────────────────────────────────────────────────────
+
+  // When a track is marked hidden, only the visible tracks get rendered.
+  #applyVisibility() {
+    const api = this.#engine.api;
+    if (!api?.score) return;
+    const tracks = api.score.tracks;
+    const visible = tracks.filter((t) => t.isVisibleOnMultiTrack !== false);
+    if (visible.length < tracks.length) {
+      this.#renderFilterActive = true;
+      try { api.renderTracks(visible); } catch {}
+    } else {
+      this.#renderFilterActive = false;
+    }
+  }
+
+  // Renders the score, keeping the visible-track filter in sync.
+  #finishRender() {
+    const api = this.#engine.api;
+    if (!api?.score) {
+      this.#engine.requestUpdate();
+      return;
+    }
+    const tracks = api.score.tracks;
+    const visible = tracks.filter((t) => t.isVisibleOnMultiTrack !== false);
+    if (visible.length < tracks.length) {
+      if (!this.#renderFilterActive) {
+        this.#renderFilterActive = true;
+        try { api.renderTracks(visible); } catch {}
+      } else {
+        this.#engine.requestUpdate();
+      }
+    } else if (this.#renderFilterActive) {
+      this.#renderFilterActive = false;
+      try { api.renderTracks(tracks); } catch {}
+    } else {
+      this.#engine.requestUpdate();
+    }
+  }
+
+  // Re-apply mute/solo to the player after MIDI reloads reset channel states.
+  #syncPlaybackState() {
+    const api = this.#engine.api;
+    if (!api?.score) return;
+    try {
+      for (const track of api.score.tracks) {
+        api.changeTrackMute([track], !!track.playbackInfo.isMute);
+        api.changeTrackSolo([track], !!track.playbackInfo.isSolo);
+      }
+    } catch {}
   }
 }
