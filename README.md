@@ -3,12 +3,9 @@ to do:
 
 ### (Next up)
 
-- test import music xml, drum editor, and intrument sound change
-- metronome trainer needs increase tempo by ?bpm after ? repeats (maybe pitch api too, if not just move as loop option to playback options)
-- scroll broken
-- lag on many track load and view toggle (maybe only put in view active tracks that play audio)
-- horizontal multitrack broken
+auto scroll still broken , intrument change still doesnt change in sound and resets playback position.,
 
+and switch page to horizontal layout stil breaks when opening big file with multiple tracks
 ---
 
 ### 📅 Bar (Measure & Timing)

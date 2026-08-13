@@ -15,6 +15,9 @@ export class Engine {
 
     this.api = new alphaTab.AlphaTabApi(canvasEl, settings);
 
+    // Expose the api for dev-time debugging only (window.__alphaTabApi)
+    if (import.meta.env.DEV) globalThis.__alphaTabApi = this.api;
+
     // Auto-tick Svelte when AlphaTab mutates internally
     this.api.scoreLoaded.on(() => this.ping());
     this.api.settingsUpdated.on(() => this.ping());

@@ -55,6 +55,7 @@
   const mode = $derived(ed.getTrackStaffMode(selected));
   const isDrum = $derived(mode === "drum");
   const program = $derived(ed.getTrackProgram(selected));
+  const isFretted = $derived(ed.isFrettedInstrument(selected));
   const stringCount = $derived(ed.getTrackStringCount(selected));
   // Read the tuning fresh each time (it reads engine state) so edits re-render
   const tuningPitches = $derived.by(() => {
@@ -73,11 +74,6 @@
       ed.renameTrack(index, renameValue);
     }
     renamingIndex = -1;
-  }
-
-  function cycleVoice(index) {
-    const next = (ed.getTrackVoiceCount(index) % 4) + 1;
-    ed.setTrackVoiceCount(index, next);
   }
 
   function setProgram(e) {
@@ -168,8 +164,9 @@
           >
           <button
             class="mini voices"
-            title="Voices per bar (1–4)"
-            onclick={() => cycleVoice(i)}
+            class:on={i === ed.selectedTrackIndex}
+            title="Voices per bar (1–4) — configure in the detail panel"
+            onclick={() => ed.selectTrack(i)}
           >{ed.getTrackVoiceCount(i)}v</button>
           <button
             class="mini"
@@ -224,6 +221,35 @@
         </div>
       </div>
 
+      <div class="field">
+        <span class="field-label">Voices</span>
+        <div class="seg">
+          {#each [1, 2, 3, 4] as vn}
+            <button
+              class:active={ed.activeVoiceIndex === vn - 1}
+              class:disabled={vn > ed.getTrackVoiceCount(selected)}
+              title={`Edit voice ${vn}`}
+              onclick={() => ed.selectVoice(vn - 1)}
+            >{vn}</button>
+          {/each}
+        </div>
+        <button
+          class="mini"
+          title="Add voice"
+          disabled={ed.getTrackVoiceCount(selected) >= 4}
+          onclick={() => ed.addVoiceToTrack(selected)}
+        >+</button>
+        <button
+          class="mini danger"
+          title="Remove last voice (only if empty, so no notes are lost)"
+          disabled={ed.getTrackVoiceCount(selected) <= 1}
+          onclick={() => ed.removeVoiceFromTrack(selected)}
+        >−</button>
+        <span class="voices-hint">
+          Editing voice {ed.activeVoiceIndex + 1} of {ed.getTrackVoiceCount(selected)}
+        </span>
+      </div>
+
       {#if isDrum}
         <div class="field drum-kit">
           <span class="field-label">Drum Kit</span>
@@ -247,7 +273,7 @@
             {/each}
           </select>
         </div>
-      {:else}
+      {:else if isFretted}
         <div class="field tuning">
           <span class="field-label">Tuning</span>
           <select
@@ -465,6 +491,18 @@
     color: var(--color-bg);
     background: var(--color-primary);
     border-color: var(--color-primary);
+  }
+
+  .seg button.disabled {
+    color: var(--color-text-muted);
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  .voices-hint {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
   }
 
   .drum-kit {
