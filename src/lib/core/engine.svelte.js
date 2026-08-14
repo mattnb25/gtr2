@@ -9,9 +9,9 @@ export class Engine {
     if (!canvasEl) return;
     this.destroy();
 
-    for (const [element, font] of alphaTab.RenderingResources.defaultFonts) {
-      if (element === 0) font.size = font.size - 2;
-    }
+    // for (const [element, font] of alphaTab.RenderingResources.defaultFonts) {
+    //   if (element === 0) font.size = font.size - 2;
+    // }
 
     this.api = new alphaTab.AlphaTabApi(canvasEl, settings);
 

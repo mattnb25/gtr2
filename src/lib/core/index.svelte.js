@@ -24,7 +24,9 @@ class Project {
     player: {
       soundFont: "/soundfont/sonivox.sf3",
       enablePlayer: true,
-      scrollMode: "offscreen",
+      // Smooth scrolls with the playhead on every beat; offscreen only jumps at
+      // page boundaries (a 138bpm page can last ~50s, so it feels like nothing).
+      scrollMode: "smooth",
     },
     display: {
       padding: [14, 18],
@@ -38,7 +40,9 @@ class Project {
 
   init(canvasEl) {
     this.canvasEl = canvasEl;
-    this.settings.player.scrollElement = this.canvasEl;
+    // Auto-scroll must target the element that actually scrolls
+    // (.viewer-container, overflow:auto), not the inner .canvas div.
+    this.settings.player.scrollElement = this.canvasEl?.parentElement || this.canvasEl;
     this.engine.init(this.canvasEl, this.settings);
     this.editor.initListeners();
     this.playback.initListeners();

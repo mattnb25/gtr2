@@ -40,6 +40,10 @@ export class Editor {
   // Reference to the active auto-scroll handler so track changes can reset it
   #scrollHandler = null;
 
+  // Scale the user had before auto-fit lowered it for horizontal layout; it is
+  // restored when switching back to page layout.
+  #horizontalPrevScale = null;
+
   // Two separate visual indicators:
   beatCursorBox = $state(null);  // full-column highlight for the current beat
   cursorBox = $state(null);      // single-string-row highlight for the note target
@@ -1261,6 +1265,17 @@ export class Editor {
     // render horizontal scores fully. Page layout can go back to lazy loading.
     if (field === "layoutMode") {
       api.settings.core.enableLazyLoading = value !== 1;
+      if (value === 1) {
+        // Horizontal layout is one giant system; auto-fit the scale so the
+        // full-width canvas stays within the browser's raster limits.
+        this.#fitHorizontalScale(api);
+      } else if (this.#horizontalPrevScale) {
+        api.settings.display.scale = this.#horizontalPrevScale;
+        this.#horizontalPrevScale = null;
+      }
+    } else if (field === "scale" && api.settings.display.layoutMode === 1) {
+      // Zooming while in horizontal layout must respect the same limit.
+      this.#fitHorizontalScale(api);
     }
     api.updateSettings();
     // Re-target the track list explicitly and scroll back to the start; a plain
@@ -1272,6 +1287,58 @@ export class Editor {
       scrollEl.scrollTop = 0;
       scrollEl.scrollLeft = 0;
     }
+  }
+
+  // Horizontal layout renders the whole song as ONE giant system (alphaTab's
+  // barCountPerPartial splitting is defeated by multi-bar effects such as
+  // let-ring/palm-mute). On big multitrack files that single canvas can be
+  // 100k+ px wide, which exceeds browser canvas limits and/or takes ages to
+  // rasterize (blank score / freeze). Measure the full layout width via a cheap
+  // lazy pre-pass (layout only, no rasterization), then reduce the display
+  // scale so the final canvas stays within a safe pixel budget. The cursor and
+  // render code keep working because only display.scale changes.
+  #fitHorizontalScale(api) {
+    if (!api?.score) return;
+    const maxWidth = 28000;      // canvas CSS-px budget (× dpr still < 65535)
+    const minScale = 0.15;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let fitted = false;
+    const finish = () => {
+      if (fitted) return;
+      fitted = true;
+      try { api.renderer.partialLayoutFinished.off(handler); } catch {}
+      // The fitted render is bounded now, so lazy loading can stay off.
+      api.settings.core.enableLazyLoading = false;
+      api.updateSettings();
+      // Re-render with the fitted scale before the lazy intersection observer
+      // can rasterize the oversized measure-pass canvas.
+      queueMicrotask(() => this.#finishRender());
+    };
+    const handler = (args) => {
+      const total = args?.totalWidth;
+      if (!total || total <= 0) return;
+      // Remember the user's own scale the first time we auto-fit, so switching
+      // back to page layout restores exactly what they had.
+      if (this.#horizontalPrevScale === null) {
+        this.#horizontalPrevScale = api.settings.display.scale;
+      }
+      // totalWidth is layout width at the CURRENT scale: scale is already
+      // applied, so recompute the scale factor by ratio.
+      if (total * dpr > maxWidth) {
+        api.settings.display.scale = Math.max(
+          minScale,
+          (maxWidth / (total * dpr)) * api.settings.display.scale
+        );
+        api.updateSettings();
+      }
+      finish();
+    };
+    try { api.renderer.partialLayoutFinished.on(handler); } catch {}
+    // The render triggered by the caller (updateSettingsField below) is the
+    // measuring pass: with lazy loading enabled here it only lays out, then
+    // finish() disables lazy loading and the microtask re-renders fitted.
+    api.settings.core.enableLazyLoading = true;
+    api.updateSettings();
   }
 
   // ── Internal ─────────────────────────────────────────────────────────────────
@@ -1357,8 +1424,20 @@ export class Editor {
     // Give each track its own MIDI channel so program/instrument changes apply
     this.#assignChannels();
 
-    // Re-sync player MIDI with the updated score so playback reflects edits
-    try { this.#engine.api?.loadMidiForScore(); } catch (e) { console.warn("loadMidiForScore:", e); }
+    // Re-sync player MIDI with the updated score so playback reflects edits.
+    // loadMidiForScore() stops playback and resets the position to 0; preserve
+    // and restore both so edits (e.g. instrument changes) don't interrupt or
+    // reset playback. Seeking back re-processes the MIDI from tick 0, which
+    // re-applies the (possibly changed) program/preset at the restored position
+    // so the new instrument is actually heard mid-song.
+    try {
+      const api = this.#engine.api;
+      const wasPlaying = api.playerState === 1;
+      const tick = api.tickPosition || 0;
+      api.loadMidiForScore();
+      if (tick > 0) api.tickPosition = tick;
+      if (wasPlaying) api.play();
+    } catch (e) { console.warn("loadMidiForScore:", e); }
 
     // Re-apply mute/solo to the player channels (they reset when MIDI reloads)
     this.#syncPlaybackState();
@@ -1498,7 +1577,7 @@ class ActiveTrackScrollHandler {
     return api.boundsLookup?.findBeat(target) || beatBounds;
   }
 
-  #scroll(b, force) {
+  #scroll(b) {
     const api = this.#api;
     const ui = api.uiFacade;
     if (!ui) return;
@@ -1508,26 +1587,20 @@ class ActiveTrackScrollHandler {
     if (!barBounds) return;
     const settings = api.settings;
     const horizontal = settings?.display?.layoutMode === 1;
-    const viewport = ui.getOffset(null, scroll);
+    // Follow the playhead: keep the current bar's row pinned to the top of the
+    // viewport. Offscreen-style gating only fires at page boundaries (a single
+    // page can last ~50s at 138bpm), which reads as "auto-scroll does nothing".
     if (horizontal) {
-      const vb = barBounds.visualBounds;
-      const right = scroll.scrollLeft + viewport.w;
-      if (force || vb.x + vb.w >= right || vb.x < scroll.scrollLeft) {
-        const target = barBounds.realBounds.x + (settings.player.scrollOffsetX || 0);
-        if (force || target !== this.#lastX) {
-          this.#lastX = target;
-          ui.scrollToX(scroll, target, settings.player.scrollSpeed);
-        }
+      const target = barBounds.realBounds.x + (settings.player.scrollOffsetX || 0);
+      if (target !== this.#lastX) {
+        this.#lastX = target;
+        ui.scrollToX(scroll, target, settings.player.scrollSpeed);
       }
     } else {
-      const vb = barBounds.visualBounds;
-      const bottom = scroll.scrollTop + viewport.h;
-      if (force || vb.y + vb.h >= bottom || vb.y < scroll.scrollTop) {
-        const target = barBounds.realBounds.y + (settings.player.scrollOffsetY || 0);
-        if (force || target !== this.#lastY) {
-          this.#lastY = target;
-          ui.scrollToY(scroll, target, settings.player.scrollSpeed);
-        }
+      const target = barBounds.realBounds.y + (settings.player.scrollOffsetY || 0);
+      if (target !== this.#lastY) {
+        this.#lastY = target;
+        ui.scrollToY(scroll, target, settings.player.scrollSpeed);
       }
     }
   }
@@ -1535,7 +1608,7 @@ class ActiveTrackScrollHandler {
   forceScrollTo(currentBeatBounds) {
     this.#lastY = -1;
     this.#lastX = -1;
-    this.#scroll(this.#resolve(currentBeatBounds), true);
+    this.#scroll(this.#resolve(currentBeatBounds));
   }
 
   onBeatCursorUpdating(startBeat) {
