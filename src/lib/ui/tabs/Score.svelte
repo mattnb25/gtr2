@@ -36,7 +36,6 @@
         if (e.target.files[0]) project.io.loadFileData(e.target.files[0]);
         e.target.value = "";
     }}
-    accept=".gp,.gp3,.gp4,.gp5,.gpx,.atex,.xml,.mxl,.musicxml"
     style="display: none;"
 />
 

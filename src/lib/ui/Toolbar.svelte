@@ -27,7 +27,7 @@
     {/if}
 </div>
 
-<div id="tabs">
+<div id="tabs" class:playing={pb.isPlaying}>
     {#each ["score", "controls", "track", "bar", "beat", "note"] as tab}
         <button
             class:active={activeTab === tab}
@@ -79,6 +79,11 @@
     }
 
     #tab-content.playing {
+        pointer-events: none;
+        opacity: 0.6;
+    }
+
+    #tabs.playing {
         pointer-events: none;
         opacity: 0.6;
     }

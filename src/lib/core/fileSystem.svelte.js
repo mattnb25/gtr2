@@ -23,30 +23,6 @@ export class FileSystem {
 
     try {
       const [handle] = await window.showOpenFilePicker({
-        types: [
-          {
-            description: "Guitar Pro Files",
-            accept: {
-              "application/x-guitar-pro": [
-                ".gp",
-                ".gp3",
-                ".gp4",
-                ".gp5",
-                ".gpx",
-              ],
-            },
-          },
-          {
-            description: "AlphaTex Files",
-            accept: { "text/x-alphatex": [".atex"] },
-          },
-          {
-            description: "MusicXML Files",
-            accept: {
-              "application/vnd.recordare.musicxml": [".xml", ".mxl", ".musicxml"],
-            },
-          },
-        ],
         multiple: false,
       });
 
@@ -55,7 +31,7 @@ export class FileSystem {
       await this.loadFileData(file);
       return true;
     } catch {
-      return true;
+      return false;
     }
   }
 

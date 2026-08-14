@@ -44,12 +44,6 @@ export class Editor {
   // restored when switching back to page layout.
   #horizontalPrevScale = null;
 
-  // Programs sent per channel during the last MIDI generation. When the program
-  // for a channel hasn't changed, alphaTab's MidiFileGenerator skips the
-  // ProgramChange event. We must therefore clear this cache whenever the user
-  // changes an instrument so the new program is emitted.
-  #programsPerChannel = new Map();
-
   // Two separate visual indicators:
   beatCursorBox = $state(null);  // full-column highlight for the current beat
   cursorBox = $state(null);      // single-string-row highlight for the note target
@@ -976,8 +970,6 @@ export class Editor {
           }
         }
       }
-      this.#programsPerChannel.delete(track.playbackInfo.primaryChannel);
-      this.#programsPerChannel.delete(track.playbackInfo.secondaryChannel);
     } else {
       staff.isPercussion = false;
       staff.showStandardNotation = mode === "standard";
@@ -1028,11 +1020,6 @@ export class Editor {
     if (!track || this.isTrackDrum(index)) return;
     this.#project.history.snapshot();
     track.playbackInfo.program = Math.max(0, Math.min(127, Math.round(program)));
-    // Invalidate the per-channel program cache so the new program is emitted
-    // in the next MIDI generation.
-    for (const ch of [track.playbackInfo.primaryChannel, track.playbackInfo.secondaryChannel]) {
-      this.#programsPerChannel.delete(ch);
-    }
     this.#applyInstrumentDefaults(index);
     this.#assignChannels();
     this.#applyVoiceDisplay();
