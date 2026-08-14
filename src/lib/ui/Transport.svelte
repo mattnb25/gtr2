@@ -60,15 +60,13 @@
         type="range"
         min="0"
         max={pb.endTime || 100}
-        step={pb.endTime / 100}
+        step="any"
         value={pb.currentTime}
         oninput={(e) => {
           pb.isSeeking = true;
-          pb.currentTime = Number(e.target.value);
-        }}
-        onchange={(e) => {
-          pb.seek(Number(e.target.value));
-          console.log(e.target.value);
+          const t = Number(e.target.value);
+          pb.currentTime = t;
+          pb.seek(t);
         }}
       />
     </label>

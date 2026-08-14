@@ -15,6 +15,10 @@ export class Playback {
   loopEndBar = $state(1);
   isLooping = $state(false);
 
+  // Whether the scroll-to-top on render has already been applied for the
+  // current score. Prevents edit re-renders from yanking the view back up.
+  #scrollResetDone = $state(false);
+
   constructor(engine) {
     this.#engine = engine;
   }
@@ -47,14 +51,17 @@ export class Playback {
       this.isLooping = false;
       this.loopStartBar = 1;
       this.loopEndBar = 1;
+      this.#scrollResetDone = false;
       this.#engine.ping();
     });
 
     api.postRenderFinished.on(() => {
       this.isRendered = true;
-      // Scroll the canvas back to the beginning on every new load
-      const scrollEl = api.settings?.player?.scrollElement;
-      if (scrollEl) scrollEl.scrollTop = 0;
+      if (!this.#scrollResetDone) {
+        this.#scrollResetDone = true;
+        const scrollEl = api.settings?.player?.scrollElement;
+        if (scrollEl) scrollEl.scrollTop = 0;
+      }
       this.#engine.ping();
     });
 

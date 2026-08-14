@@ -44,6 +44,12 @@ export class Editor {
   // restored when switching back to page layout.
   #horizontalPrevScale = null;
 
+  // Programs sent per channel during the last MIDI generation. When the program
+  // for a channel hasn't changed, alphaTab's MidiFileGenerator skips the
+  // ProgramChange event. We must therefore clear this cache whenever the user
+  // changes an instrument so the new program is emitted.
+  #programsPerChannel = new Map();
+
   // Two separate visual indicators:
   beatCursorBox = $state(null);  // full-column highlight for the current beat
   cursorBox = $state(null);      // single-string-row highlight for the note target
@@ -92,6 +98,11 @@ export class Editor {
       this.#applyVisibility();
       const firstBeat = this.getFirstBeat();
       if (firstBeat) this.selectBeat(firstBeat);
+      // Re-fit horizontal scale for the newly loaded score so it doesn't stay
+      // at the previous file's fitted value.
+      if (this.settings?.display?.layoutMode === 1) {
+        this.#fitHorizontalScale(this.#engine.api);
+      }
     });
   }
 
@@ -965,9 +976,11 @@ export class Editor {
           }
         }
       }
+      this.#programsPerChannel.delete(track.playbackInfo.primaryChannel);
+      this.#programsPerChannel.delete(track.playbackInfo.secondaryChannel);
     } else {
       staff.isPercussion = false;
-      staff.showStandardNotation = true;
+      staff.showStandardNotation = mode === "standard";
       staff.showTablature = mode !== "standard";
       if (!staff.stringTuning?.tunings?.length) {
         staff.stringTuning = alphaTab.model.Tuning.getDefaultTuningFor(6) ||
@@ -1015,6 +1028,11 @@ export class Editor {
     if (!track || this.isTrackDrum(index)) return;
     this.#project.history.snapshot();
     track.playbackInfo.program = Math.max(0, Math.min(127, Math.round(program)));
+    // Invalidate the per-channel program cache so the new program is emitted
+    // in the next MIDI generation.
+    for (const ch of [track.playbackInfo.primaryChannel, track.playbackInfo.secondaryChannel]) {
+      this.#programsPerChannel.delete(ch);
+    }
     this.#applyInstrumentDefaults(index);
     this.#assignChannels();
     this.#applyVoiceDisplay();
@@ -1274,8 +1292,8 @@ export class Editor {
         this.#horizontalPrevScale = null;
       }
     } else if (field === "scale" && api.settings.display.layoutMode === 1) {
-      // Zooming while in horizontal layout must respect the same limit.
-      this.#fitHorizontalScale(api);
+      // Manual zoom in horizontal layout is allowed; only auto-fit on mode change
+      // or new file load.
     }
     api.updateSettings();
     // Re-target the track list explicitly and scroll back to the start; a plain
@@ -1437,6 +1455,7 @@ export class Editor {
       api.loadMidiForScore();
       if (tick > 0) api.tickPosition = tick;
       if (wasPlaying) api.play();
+      try { api.updateSyncPoints(); } catch {}
     } catch (e) { console.warn("loadMidiForScore:", e); }
 
     // Re-apply mute/solo to the player channels (they reset when MIDI reloads)

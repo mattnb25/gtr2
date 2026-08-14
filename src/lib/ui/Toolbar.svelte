@@ -5,11 +5,13 @@
     import Bar from "./tabs/Bar.svelte";
     import Beat from "./tabs/Beat.svelte";
     import Note from "./tabs/Note.svelte";
+    import { project } from "$lib/core/index.svelte.js";
 
     let activeTab = $state("score");
+    let pb = $derived(project.playback);
 </script>
 
-<div id="tab-content">
+<div id="tab-content" class:playing={pb.isPlaying}>
     {#if activeTab === "score"}
         <Score />
     {:else if activeTab === "controls"}
@@ -74,5 +76,10 @@
         width: 100%;
         overflow-x: auto;
         flex-shrink: 0;
+    }
+
+    #tab-content.playing {
+        pointer-events: none;
+        opacity: 0.6;
     }
 </style>
