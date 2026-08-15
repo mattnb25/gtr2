@@ -179,44 +179,14 @@ export class Editor {
 
   // ── Overlay / Indicators ────────────────────────────────────────────────────
 
-  #getTabStaffInfo(beat) {
-    const api = this.#engine.api;
-    if (!api?.boundsLookup || !beat) return null;
-
-    const beatBounds = api.boundsLookup.findBeat(beat);
-    if (!beatBounds?.visualBounds) return null;
-
-    const vb = beatBounds.visualBounds;
-
-    // Walk the stave system to find the tab staff's visual bounds
-    const barBounds = beatBounds.barBounds;
-    const staves = barBounds?.staffSystemBounds?.staffBounds ?? [];
-    let tabStaff = null;
-    for (const s of staves) {
-      if (s.isTabStaff || s.staff?.isTab) {
-        tabStaff = s;
-        break;
-      }
-    }
-
-    const tabY = tabStaff?.visualBounds?.y ?? vb.y;
-    const tabH = tabStaff?.visualBounds?.h ?? vb.h;
-    const numStrings = this.stringCount;
-    const stringGap = tabH / Math.max(numStrings - 1, 1);
-
-    return { vb, tabY, tabH, stringGap };
-  }
-
   #findNoteBounds(beatBounds, note) {
     if (!note || !beatBounds?.notes) return null;
     for (const nb of beatBounds.notes) {
       if (nb.note === note && nb.noteHeadBounds) return nb;
     }
-    // Fallback: alphaTab may have rebuilt notes — match by string+fret
     for (const nb of beatBounds.notes) {
       if (nb.noteHeadBounds && nb.note.string === note.string && nb.note.fret === note.fret) return nb;
     }
-    // Last resort: match by string only
     for (const nb of beatBounds.notes) {
       if (nb.noteHeadBounds && nb.note.string === note.string) return nb;
     }
@@ -243,22 +213,14 @@ export class Editor {
         return;
       }
 
-      const info = this.#getTabStaffInfo(beat);
-      if (!info) {
-        this.beatCursorBox = null;
-        this.cursorBox = null;
-        this.selectionBoxes = [];
-        return;
-      }
+      const vb = beatBounds.visualBounds;
 
-      const { vb, tabY, tabH, stringGap } = info;
-
-      // 1. Beat indicator — full column covering the whole tab staff
+      // 1. Beat indicator — full column covering the whole beat area
       this.beatCursorBox = {
         x: vb.x - 2,
-        y: tabY - 4,
+        y: vb.y - 4,
         w: Math.max(vb.w + 4, 18),
-        h: tabH + 8,
+        h: vb.h + 8,
       };
 
       // 2. Note indicator — snap to the actual notehead in standard notation
@@ -275,7 +237,8 @@ export class Editor {
         // Fallback: place cursor at the beat's onNotesX on the active string row
         const activeStr = this.activeNote.string ?? this.activeString;
         const clampedStr = Math.min(Math.max(activeStr, 1), this.stringCount);
-        const stringY = tabY + (clampedStr - 1) * stringGap;
+        const stringGap = vb.h / Math.max(this.stringCount - 1, 1);
+        const stringY = vb.y + (clampedStr - 1) * stringGap;
         this.cursorBox = {
           x: (beatBounds.onNotesX ?? vb.x) - 4,
           y: stringY - 9,
@@ -290,13 +253,14 @@ export class Editor {
       const selected = this.getSelectedBeats();
       if (selected.length > 1) {
         this.selectionBoxes = selected.map((b) => {
-          const bi = this.#getTabStaffInfo(b);
-          if (!bi) return null;
+          const bi = api.boundsLookup.findBeat(b);
+          if (!bi?.visualBounds) return null;
+          const bvb = bi.visualBounds;
           return {
-            x: bi.vb.x - 2,
-            y: bi.tabY - 4,
-            w: Math.max(bi.vb.w + 4, 18),
-            h: bi.tabH + 8,
+            x: bvb.x - 2,
+            y: bvb.y - 4,
+            w: Math.max(bvb.w + 4, 18),
+            h: bvb.h + 8,
           };
         }).filter(Boolean);
       } else {
@@ -979,10 +943,19 @@ export class Editor {
   }
 
   getTrackStaffMode(index) {
-    const staff = this.score?.tracks?.[index]?.staves?.[0];
-    if (!staff) return "tab";
-    if (staff.isPercussion) return "drum";
-    return staff.showTablature ? "tab" : "standard";
+    const track = this.score?.tracks?.[index];
+    if (!track) return "tab";
+    if (track.staves.some((s) => s.isPercussion)) return "drum";
+    if (track.staves.length >= 2) {
+      const clefs = track.staves.map((s) => s.bars[0]?.clef).filter((c) => c != null);
+      if (clefs.includes(alphaTab.model.Clef.G2) && clefs.includes(alphaTab.model.Clef.F4)) {
+        return "grand";
+      }
+    }
+    const staff = track.staves[0];
+    if (staff.showTablature && staff.showStandardNotation) return "scoretab";
+    if (staff.showTablature) return "tab";
+    return "standard";
   }
 
   getStaffCount(index) {
@@ -992,6 +965,115 @@ export class Editor {
   getStaffClef(index, staffIndex) {
     const bar = this.score?.tracks?.[index]?.staves?.[staffIndex]?.bars?.[0];
     return bar?.clef ?? alphaTab.model.Clef.G2;
+  }
+
+  getStaffStaffMode(index, staffIndex) {
+    const staff = this.score?.tracks?.[index]?.staves?.[staffIndex];
+    if (!staff) return "tab";
+    if (staff.isPercussion) return "drum";
+    if (staff.showTablature && staff.showStandardNotation) return "scoretab";
+    if (staff.showTablature) return "tab";
+    return "standard";
+  }
+
+  setTrackStaffMode(index, mode) {
+    const track = this.score?.tracks?.[index];
+    if (!track || !track.staves.length) return;
+    const currentMode = this.getTrackStaffMode(index);
+    if (mode === currentMode) return;
+    this.#project.history.snapshot();
+
+    if (mode === "drum") {
+      for (const staff of track.staves) {
+        staff.isPercussion = true;
+        staff.showTablature = false;
+        staff.showStandardNotation = true;
+        staff.stringTuning = new alphaTab.model.Tuning("", [], false);
+        for (const bar of staff.bars) {
+          bar.clef = alphaTab.model.Clef.Neutral;
+          for (const voice of bar.voices) {
+            for (const beat of voice.beats) {
+              for (const note of beat.notes || []) {
+                note.percussionArticulation = note.percussionArticulation < 0 ? 36 : note.percussionArticulation;
+                note.string = -1;
+                note.fret = -1;
+              }
+            }
+          }
+        }
+      }
+    } else if (mode === "grand") {
+      while (track.staves.length < 2) {
+        const newStaff = new alphaTab.model.Staff();
+        const firstStaff = track.staves[0];
+        newStaff.showStandardNotation = true;
+        newStaff.showTablature = true;
+        if (firstStaff?.stringTuning?.tunings?.length) {
+          newStaff.stringTuning = new alphaTab.model.Tuning(firstStaff.stringTuning.name, [...firstStaff.stringTuning.tunings], false);
+        }
+        if (firstStaff) {
+          for (const bar of firstStaff.bars) {
+            const newBar = new alphaTab.model.Bar();
+            newBar.clef = alphaTab.model.Clef.F4;
+            newStaff.addBar(newBar);
+          }
+        }
+        track.addStaff(newStaff);
+      }
+      while (track.staves.length > 2) {
+        track.staves.pop();
+      }
+      track.staves[0].clef = alphaTab.model.Clef.G2;
+      track.staves[0].showStandardNotation = true;
+      track.staves[0].showTablature = true;
+      track.staves[0].isPercussion = false;
+      if (track.staves[1]) {
+        track.staves[1].clef = alphaTab.model.Clef.F4;
+        track.staves[1].showStandardNotation = true;
+        track.staves[1].showTablature = true;
+        track.staves[1].isPercussion = false;
+      }
+    } else {
+      const showStandard = mode === "standard" || mode === "scoretab";
+      const showTab = mode === "tab" || mode === "scoretab";
+      for (const staff of track.staves) {
+        staff.isPercussion = false;
+        staff.showStandardNotation = showStandard;
+        staff.showTablature = showTab;
+        if (!staff.stringTuning?.tunings?.length) {
+          staff.stringTuning = alphaTab.model.Tuning.getDefaultTuningFor(6) ||
+            new alphaTab.model.Tuning("Guitar Standard Tuning", [64, 59, 55, 50, 45, 40], true);
+        }
+        const tunings = staff.stringTuning.tunings;
+        let hasPianoNote = false;
+        for (const bar of staff.bars) {
+          bar.clef = alphaTab.model.Clef.G2;
+          for (const voice of bar.voices) {
+            for (const beat of voice.beats) {
+              for (const note of beat.notes || []) {
+                note.percussionArticulation = -1;
+                if (note.octave >= 0 && note.tone >= 0) hasPianoNote = true;
+              }
+            }
+          }
+        }
+        if (hasPianoNote) this.#retuneToTuning(staff, tunings);
+        for (const bar of staff.bars) {
+          for (const voice of bar.voices) {
+            for (const beat of voice.beats) {
+              for (const note of beat.notes || []) {
+                if (!note.isStringed && !(note.octave >= 0 && note.tone >= 0)) {
+                  note.string = 1;
+                  note.fret = 0;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    this.#applyVoiceDisplay();
+    this.#finishAndUpdate(true);
   }
 
   setStaffClef(index, staffIndex, clef) {
@@ -1037,78 +1119,6 @@ export class Editor {
     this.#finishAndUpdate(true);
   }
 
-  setTrackStaffMode(index, mode) {
-    const track = this.score?.tracks?.[index];
-    if (!track || !track.staves.length) return;
-    if (mode === this.getTrackStaffMode(index)) return;
-    this.#project.history.snapshot();
-
-    const isDrum = mode === "drum";
-    for (const staff of track.staves) {
-      if (isDrum) {
-        staff.isPercussion = true;
-        staff.showTablature = false;
-        staff.showStandardNotation = true;
-        staff.stringTuning = new alphaTab.model.Tuning("", [], false);
-        for (const bar of staff.bars) {
-          bar.clef = alphaTab.model.Clef.Neutral;
-          for (const voice of bar.voices) {
-            for (const beat of voice.beats) {
-              for (const note of beat.notes || []) {
-                note.percussionArticulation = note.percussionArticulation < 0 ? 36 : note.percussionArticulation;
-                note.string = -1;
-                note.fret = -1;
-              }
-            }
-          }
-        }
-      } else {
-        staff.isPercussion = false;
-        staff.showStandardNotation = mode === "standard";
-        staff.showTablature = mode !== "standard";
-        if (!staff.stringTuning?.tunings?.length) {
-          staff.stringTuning = alphaTab.model.Tuning.getDefaultTuningFor(6) ||
-            new alphaTab.model.Tuning("Guitar Standard Tuning", [64, 59, 55, 50, 45, 40], true);
-        }
-        const tunings = staff.stringTuning.tunings;
-        let hasPianoNote = false;
-        for (const bar of staff.bars) {
-          bar.clef = alphaTab.model.Clef.G2;
-          for (const voice of bar.voices) {
-            for (const beat of voice.beats) {
-              for (const note of beat.notes || []) {
-                note.percussionArticulation = -1;
-                if (note.octave >= 0 && note.tone >= 0) hasPianoNote = true;
-              }
-            }
-          }
-        }
-        if (hasPianoNote) this.#retuneToTuning(staff, tunings);
-        for (const bar of staff.bars) {
-          for (const voice of bar.voices) {
-            for (const beat of voice.beats) {
-              for (const note of beat.notes || []) {
-                if (!note.isStringed && !(note.octave >= 0 && note.tone >= 0)) {
-                  note.string = 1;
-                  note.fret = 0;
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    this.#applyVoiceDisplay();
-    this.#finishAndUpdate(true);
-  }
-
-  getStaffStaffMode(index, staffIndex) {
-    const staff = this.score?.tracks?.[index]?.staves?.[staffIndex];
-    if (!staff) return "tab";
-    if (staff.isPercussion) return "drum";
-    return staff.showTablature ? "tab" : "standard";
-  }
-
   setStaffStaffMode(index, staffIndex, mode) {
     const staff = this.score?.tracks?.[index]?.staves?.[staffIndex];
     if (!staff) return;
@@ -1133,8 +1143,8 @@ export class Editor {
       }
     } else {
       staff.isPercussion = false;
-      staff.showStandardNotation = mode === "standard";
-      staff.showTablature = mode !== "standard";
+      staff.showStandardNotation = mode === "standard" || mode === "scoretab";
+      staff.showTablature = mode === "tab" || mode === "scoretab";
       if (!staff.stringTuning?.tunings?.length) {
         staff.stringTuning = alphaTab.model.Tuning.getDefaultTuningFor(6) ||
           new alphaTab.model.Tuning("Guitar Standard Tuning", [64, 59, 55, 50, 45, 40], true);
@@ -1453,11 +1463,9 @@ export class Editor {
   // barCountPerPartial splitting is defeated by multi-bar effects such as
   // let-ring/palm-mute). On big multitrack files that single canvas can be
   // 100k+ px wide, which exceeds browser canvas limits and/or takes ages to
-  // rasterize (blank score / freeze). We render a cheap measuring pass with
-  // lazy loading disabled so renderFinished reports the true full layout
-  // width, then reduce display.scale so the final canvas stays within a safe
-  // pixel budget. The cursor and render code keep working because only
-  // display.scale changes.
+  // rasterize (blank score / freeze). Disable lazy loading and reduce the
+  // display scale after the first full render so the final canvas stays within
+  // a safe pixel budget.
   #fitHorizontalScale(api) {
     if (!api?.score) return;
     const maxWidth = 28000;
@@ -1467,21 +1475,25 @@ export class Editor {
       this.#horizontalPrevScale = api.settings.display.scale;
     }
     api.settings.core.enableLazyLoading = false;
+    api.updateSettings();
+
+    let fitted = false;
     const handler = () => {
+      if (fitted) return;
+      fitted = true;
       try { api.renderer.renderFinished.off(handler); } catch {}
       const total = api.renderer?.totalWidth;
       if (!total || total <= 0) return;
       if (total * dpr > maxWidth) {
         api.settings.display.scale = Math.max(
           minScale,
-          (maxWidth / (total * dpr)) * api.settings.display.scale
+          maxWidth / (total * dpr)
         );
+        api.updateSettings();
       }
-      api.updateSettings();
-      this.#finishRender();
     };
     try { api.renderer.renderFinished.on(handler); } catch {}
-    api.updateSettings();
+    setTimeout(handler, 200);
   }
 
   // ── Internal ─────────────────────────────────────────────────────────────────
@@ -1571,7 +1583,6 @@ export class Editor {
         const api = this.#engine.api;
         const wasPlaying = api.playerState === 1;
         const tick = api.tickPosition || 0;
-        api.loadMidiForScore();
         let handled = false;
         let unregister;
         try {
@@ -1586,6 +1597,7 @@ export class Editor {
             if (typeof unregister === "function") unregister();
           });
         } catch {}
+        api.loadMidiForScore();
       } catch (e) { console.warn("loadMidiForScore:", e); }
     }
 

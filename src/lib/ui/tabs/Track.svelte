@@ -46,7 +46,9 @@
 
   const STAFF_MODES = [
     { key: "standard", label: "Standard" },
-    { key: "tab", label: "Standard + Tab" },
+    { key: "scoretab", label: "Standard + Tab" },
+    { key: "tab", label: "Tab" },
+    { key: "grand", label: "Grand Staff" },
     { key: "drum", label: "Drums" },
   ];
 
@@ -242,15 +244,6 @@
               >
                 {#each CLEFS as c}
                   <option value={c.key}>{c.label}</option>
-                {/each}
-              </select>
-              <select
-                class="staff-mode"
-                value={ed.getStaffStaffMode(selected, si)}
-                onchange={(e) => ed.setStaffStaffMode(selected, si, e.target.value)}
-              >
-                {#each STAFF_MODES as m}
-                  <option value={m.key}>{m.label}</option>
                 {/each}
               </select>
               {#if staffCount > 1}
@@ -636,9 +629,5 @@
   .clef-row select {
     width: 100px;
     font-size: 0.75rem;
-  }
-
-  .clef-row select.staff-mode {
-    width: 130px;
   }
 </style>

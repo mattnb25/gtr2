@@ -175,9 +175,7 @@
   }
 
   :global(.at-selection),
-  :global(.at-selection div),
-  :global(.at-cursor-beat),
-  :global(.at-cursor-note) {
+  :global(.at-selection div) {
     display: none !important;
     background: transparent !important;
     border: none !important;
