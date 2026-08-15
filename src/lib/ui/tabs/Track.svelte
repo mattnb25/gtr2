@@ -50,6 +50,14 @@
     { key: "drum", label: "Drums" },
   ];
 
+  const CLEFS = [
+    { key: alphaTab.model.Clef.G2, label: "Treble" },
+    { key: alphaTab.model.Clef.F4, label: "Bass" },
+    { key: alphaTab.model.Clef.C4, label: "Alto" },
+    { key: alphaTab.model.Clef.C3, label: "Tenor" },
+    { key: alphaTab.model.Clef.Neutral, label: "Percussion" },
+  ];
+
   const selected = $derived(ed.selectedTrackIndex);
   const hasTracks = $derived(ed.tracks.length > 0);
   const mode = $derived(ed.getTrackStaffMode(selected));
@@ -57,6 +65,7 @@
   const program = $derived(ed.getTrackProgram(selected));
   const isFretted = $derived(ed.isFrettedInstrument(selected));
   const stringCount = $derived(ed.getTrackStringCount(selected));
+  const staffCount = $derived(ed.getStaffCount(selected));
   // Read the tuning fresh each time (it reads engine state) so edits re-render
   const tuningPitches = $derived.by(() => {
     const t = ed.getTrackTuning(selected);
@@ -219,6 +228,37 @@
             >{m.label}</button>
           {/each}
         </div>
+      </div>
+
+      <div class="field">
+        <span class="field-label">Clefs ({staffCount})</span>
+        <div class="clefs">
+          {#each Array(staffCount) as _, si}
+            <div class="clef-row">
+              <span class="clef-label">Staff {si + 1}</span>
+              <select
+                value={ed.getStaffClef(selected, si)}
+                onchange={(e) => ed.setStaffClef(selected, si, Number(e.target.value))}
+              >
+                {#each CLEFS as c}
+                  <option value={c.key}>{c.label}</option>
+                {/each}
+              </select>
+              {#if staffCount > 1}
+                <button
+                  class="mini danger"
+                  title="Remove staff"
+                  onclick={() => ed.removeStaff(selected, si)}
+                >✕</button>
+              {/if}
+            </div>
+          {/each}
+        </div>
+        <button
+          class="mini"
+          title="Add staff"
+          onclick={() => ed.addStaff(selected)}
+        >+ Staff</button>
       </div>
 
       <div class="field">
@@ -563,5 +603,29 @@
     font-size: 0.75rem;
     font-weight: 700;
     color: var(--color-text-dark);
+  }
+
+  .clefs {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .clef-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .clef-label {
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    width: 50px;
+    flex-shrink: 0;
+  }
+
+  .clef-row select {
+    width: 100px;
+    font-size: 0.75rem;
   }
 </style>

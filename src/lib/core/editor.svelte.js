@@ -92,11 +92,6 @@ export class Editor {
       this.#applyVisibility();
       const firstBeat = this.getFirstBeat();
       if (firstBeat) this.selectBeat(firstBeat);
-      // Re-fit horizontal scale for the newly loaded score so it doesn't stay
-      // at the previous file's fitted value.
-      if (this.settings?.display?.layoutMode === 1) {
-        this.#fitHorizontalScale(this.#engine.api);
-      }
     });
   }
 
@@ -398,7 +393,7 @@ export class Editor {
     this.updateOverlay();
   }
 
-  // Move cursor position to different string
+  // Move cursor position to different string while preserving pitch
   moveString(delta) {
     const staff = this.currentActiveBeat?.voice?.bar?.staff;
     if (staff?.isPercussion) {
@@ -408,17 +403,64 @@ export class Editor {
       this.#engine.ping();
       return;
     }
-    const next = Math.min(Math.max(this.activeString + delta, 1), this.stringCount);
-    if (next === this.activeString) return;
+    const tunings = staff?.stringTuning?.tunings || [];
+    if (!tunings.length) return;
+    const currentString = this.activeString;
+    const currentFret = this.activeNote?.fret ?? 0;
+    const currentPitch = tunings[tunings.length - currentString] + currentFret;
+
+    let targetString = -1;
+    let targetFret = -1;
+    for (let s = currentString + delta; s >= 1 && s <= tunings.length; s += delta) {
+      const fret = currentPitch - tunings[tunings.length - s];
+      if (fret >= 0 && fret <= 24) {
+        targetString = s;
+        targetFret = fret;
+        break;
+      }
+    }
+    if (targetString === -1 || targetString === currentString) return;
+
     if (this.activeNote) {
       this.#project.history.snapshot();
-      this.activeNote.string = next;
-      this.activeString = next;
+      this.activeNote.string = targetString;
+      this.activeNote.fret = targetFret;
+      this.activeString = targetString;
       this.#finishAndUpdate();
     } else {
-      this.activeString = next;
+      this.activeString = targetString;
       this.updateOverlay();
     }
+  }
+
+  get canMoveStringUp() {
+    if (!this.hasActiveNote) return false;
+    const staff = this.currentActiveBeat?.voice?.bar?.staff;
+    const tunings = staff?.stringTuning?.tunings || [];
+    if (!tunings.length) return false;
+    const currentString = this.activeString;
+    const currentFret = this.activeNote?.fret ?? 0;
+    const currentPitch = tunings[tunings.length - currentString] + currentFret;
+    for (let s = currentString - 1; s >= 1; s--) {
+      const fret = currentPitch - tunings[tunings.length - s];
+      if (fret >= 0 && fret <= 24) return true;
+    }
+    return false;
+  }
+
+  get canMoveStringDown() {
+    if (!this.hasActiveNote) return false;
+    const staff = this.currentActiveBeat?.voice?.bar?.staff;
+    const tunings = staff?.stringTuning?.tunings || [];
+    if (!tunings.length) return false;
+    const currentString = this.activeString;
+    const currentFret = this.activeNote?.fret ?? 0;
+    const currentPitch = tunings[tunings.length - currentString] + currentFret;
+    for (let s = currentString + 1; s <= tunings.length; s++) {
+      const fret = currentPitch - tunings[tunings.length - s];
+      if (fret >= 0 && fret <= 24) return true;
+    }
+    return false;
   }
 
   setDrumSlot(slot) {
@@ -836,14 +878,8 @@ export class Editor {
     if (!track) return;
     this.#project.history.snapshot();
     track.isVisibleOnMultiTrack = !track.isVisibleOnMultiTrack;
-    // Coalesce rapid toggles into a single (expensive) re-render
-    if (this.#visibilityRenderQueued) return;
-    this.#visibilityRenderQueued = true;
-    queueMicrotask(() => {
-      this.#visibilityRenderQueued = false;
-      this.#finishRender();
-    });
-    this.#engine.ping();
+    this.#applyVisibility();
+    this.#finishAndUpdate(true);
   }
 
   getTrackVoiceCount(index) {
@@ -946,61 +982,113 @@ export class Editor {
     return staff.showTablature ? "tab" : "standard";
   }
 
+  getStaffCount(index) {
+    return this.score?.tracks?.[index]?.staves?.length ?? 0;
+  }
+
+  getStaffClef(index, staffIndex) {
+    const bar = this.score?.tracks?.[index]?.staves?.[staffIndex]?.bars?.[0];
+    return bar?.clef ?? alphaTab.model.Clef.G2;
+  }
+
+  setStaffClef(index, staffIndex, clef) {
+    const staff = this.score?.tracks?.[index]?.staves?.[staffIndex];
+    if (!staff) return;
+    this.#project.history.snapshot();
+    for (const bar of staff.bars) {
+      bar.clef = clef;
+    }
+    this.#finishAndUpdate(true, true);
+  }
+
+  addStaff(trackIndex) {
+    const track = this.score?.tracks?.[trackIndex];
+    if (!track) return;
+    this.#project.history.snapshot();
+    const newStaff = new alphaTab.model.Staff();
+    const firstStaff = track.staves[0];
+    newStaff.showStandardNotation = firstStaff?.showStandardNotation ?? true;
+    newStaff.showTablature = firstStaff?.showTablature ?? false;
+    if (firstStaff?.stringTuning?.tunings?.length) {
+      newStaff.stringTuning = new alphaTab.model.Tuning(firstStaff.stringTuning.name, [...firstStaff.stringTuning.tunings], false);
+    }
+    if (firstStaff) {
+      for (const bar of firstStaff.bars) {
+        const newBar = new alphaTab.model.Bar();
+        newBar.clef = alphaTab.model.Clef.G2;
+        newStaff.addBar(newBar);
+      }
+    }
+    track.addStaff(newStaff);
+    this.#finishAndUpdate(true, true);
+  }
+
+  removeStaff(trackIndex, staffIndex) {
+    const track = this.score?.tracks?.[trackIndex];
+    if (!track || track.staves.length <= 1) return;
+    this.#project.history.snapshot();
+    track.staves.splice(staffIndex, 1);
+    for (let i = staffIndex; i < track.staves.length; i++) {
+      track.staves[i].index = i;
+    }
+    this.#finishAndUpdate(true);
+  }
+
   setTrackStaffMode(index, mode) {
     const track = this.score?.tracks?.[index];
-    const staff = track?.staves?.[0];
-    if (!track || !staff) return;
+    if (!track || !track.staves.length) return;
     if (mode === this.getTrackStaffMode(index)) return;
     this.#project.history.snapshot();
 
-    if (mode === "drum") {
-      staff.isPercussion = true;
-      staff.showTablature = false;
-      staff.showStandardNotation = true;
-      staff.stringTuning = new alphaTab.model.Tuning("", [], false);
-      for (const bar of staff.bars) {
-        bar.clef = alphaTab.model.Clef.Neutral;
-        for (const voice of bar.voices) {
-          for (const beat of voice.beats) {
-            for (const note of beat.notes || []) {
-              note.percussionArticulation = note.percussionArticulation < 0 ? 36 : note.percussionArticulation;
-              note.string = -1;
-              note.fret = -1;
+    const isDrum = mode === "drum";
+    for (const staff of track.staves) {
+      if (isDrum) {
+        staff.isPercussion = true;
+        staff.showTablature = false;
+        staff.showStandardNotation = true;
+        staff.stringTuning = new alphaTab.model.Tuning("", [], false);
+        for (const bar of staff.bars) {
+          bar.clef = alphaTab.model.Clef.Neutral;
+          for (const voice of bar.voices) {
+            for (const beat of voice.beats) {
+              for (const note of beat.notes || []) {
+                note.percussionArticulation = note.percussionArticulation < 0 ? 36 : note.percussionArticulation;
+                note.string = -1;
+                note.fret = -1;
+              }
             }
           }
         }
-      }
-    } else {
-      staff.isPercussion = false;
-      staff.showStandardNotation = mode === "standard";
-      staff.showTablature = mode !== "standard";
-      if (!staff.stringTuning?.tunings?.length) {
-        staff.stringTuning = alphaTab.model.Tuning.getDefaultTuningFor(6) ||
-          new alphaTab.model.Tuning("Guitar Standard Tuning", [64, 59, 55, 50, 45, 40], true);
-      }
-      const tunings = staff.stringTuning.tunings;
-      let hasPianoNote = false;
-      for (const bar of staff.bars) {
-        bar.clef = alphaTab.model.Clef.G2;
-        for (const voice of bar.voices) {
-          for (const beat of voice.beats) {
-            for (const note of beat.notes || []) {
-              note.percussionArticulation = -1;
-              if (note.octave >= 0 && note.tone >= 0) hasPianoNote = true;
+      } else {
+        staff.isPercussion = false;
+        staff.showStandardNotation = mode === "standard";
+        staff.showTablature = mode !== "standard";
+        if (!staff.stringTuning?.tunings?.length) {
+          staff.stringTuning = alphaTab.model.Tuning.getDefaultTuningFor(6) ||
+            new alphaTab.model.Tuning("Guitar Standard Tuning", [64, 59, 55, 50, 45, 40], true);
+        }
+        const tunings = staff.stringTuning.tunings;
+        let hasPianoNote = false;
+        for (const bar of staff.bars) {
+          bar.clef = alphaTab.model.Clef.G2;
+          for (const voice of bar.voices) {
+            for (const beat of voice.beats) {
+              for (const note of beat.notes || []) {
+                note.percussionArticulation = -1;
+                if (note.octave >= 0 && note.tone >= 0) hasPianoNote = true;
+              }
             }
           }
         }
-      }
-      // Piano-style notes are re-fretted onto the (default) tuning instead of
-      // being forced to an arbitrary string/fret pair.
-      if (hasPianoNote) this.#retuneToTuning(staff, tunings);
-      for (const bar of staff.bars) {
-        for (const voice of bar.voices) {
-          for (const beat of voice.beats) {
-            for (const note of beat.notes || []) {
-              if (!note.isStringed && !(note.octave >= 0 && note.tone >= 0)) {
-                note.string = 1;
-                note.fret = 0;
+        if (hasPianoNote) this.#retuneToTuning(staff, tunings);
+        for (const bar of staff.bars) {
+          for (const voice of bar.voices) {
+            for (const beat of voice.beats) {
+              for (const note of beat.notes || []) {
+                if (!note.isStringed && !(note.octave >= 0 && note.tone >= 0)) {
+                  note.string = 1;
+                  note.fret = 0;
+                }
               }
             }
           }
@@ -1271,16 +1359,12 @@ export class Editor {
     if (field === "layoutMode") {
       api.settings.core.enableLazyLoading = value !== 1;
       if (value === 1) {
-        // Horizontal layout is one giant system; auto-fit the scale so the
-        // full-width canvas stays within the browser's raster limits.
-        this.#fitHorizontalScale(api);
-      } else if (this.#horizontalPrevScale) {
+        this.#horizontalPrevScale = api.settings.display.scale;
+      } else if (this.#horizontalPrevScale != null) {
         api.settings.display.scale = this.#horizontalPrevScale;
         this.#horizontalPrevScale = null;
       }
     } else if (field === "scale" && api.settings.display.layoutMode === 1) {
-      // Manual zoom in horizontal layout is allowed; only auto-fit on mode change
-      // or new file load.
     }
     api.updateSettings();
     // Re-target the track list explicitly and scroll back to the start; a plain
@@ -1414,7 +1498,7 @@ export class Editor {
     }
   }
 
-  #finishAndUpdate(full = false) {
+  #finishAndUpdate(full = false, skipMidiSync = false) {
     const beat = this.activeBeat;
     const note = this.activeNote;
     const savedString = this.activeString;
@@ -1426,33 +1510,24 @@ export class Editor {
     this.#project.hasUnsavedChanges = true;
     try { this.score?.finish(); } catch (e) { console.warn("alphaTab finish:", e); }
 
-    // Give each track its own MIDI channel so program/instrument changes apply
     this.#assignChannels();
 
-    // Re-sync player MIDI with the updated score so playback reflects edits.
-    // loadMidiForScore() stops playback and resets the position to 0; preserve
-    // and restore both so edits (e.g. instrument changes) don't interrupt or
-    // reset playback. Seeking back re-processes the MIDI from tick 0, which
-    // re-applies the (possibly changed) program/preset at the restored position
-    // so the new instrument is actually heard mid-song.
-    try {
-      const api = this.#engine.api;
-      const wasPlaying = api.playerState === 1;
-      const tick = api.tickPosition || 0;
-      api.loadMidiForScore();
-      if (tick > 0) api.tickPosition = tick;
-      if (wasPlaying) api.play();
-      try { api.updateSyncPoints(); } catch {}
-    } catch (e) { console.warn("loadMidiForScore:", e); }
+    if (!skipMidiSync) {
+      try {
+        const api = this.#engine.api;
+        const wasPlaying = api.playerState === 1;
+        const tick = api.tickPosition || 0;
+        api.loadMidiForScore();
+        if (wasPlaying) api.play();
+        if (tick > 0) api.tickPosition = tick;
+        try { api.updateSyncPoints(); } catch {}
+      } catch (e) { console.warn("loadMidiForScore:", e); }
+      this.#syncPlaybackState();
+    }
 
-    // Re-apply mute/solo to the player channels (they reset when MIDI reloads)
-    this.#syncPlaybackState();
-
-    // Re-resolve activeBeat from the rebuilt model
     if (beatIdx !== -1 && beat?.voice?.beats && beatIdx < beat.voice.beats.length) {
       this.activeBeat = beat.voice.beats[beatIdx];
     }
-    // Re-resolve activeNote by string+fret on the beat
     if (this.activeBeat?.notes && noteString != null) {
       this.activeNote = this.activeBeat.notes.find(
         (n) => n.string === noteString && n.fret === noteFret
@@ -1462,8 +1537,6 @@ export class Editor {
     this.activeString = savedString;
 
     this.updateOverlay();
-    // Local edits only re-render the changed bar onward (page layout); global
-    // edits (instrument, tuning, track structure) always do a full re-render.
     this.#finishRender(full ? undefined : this.#renderHints());
   }
 

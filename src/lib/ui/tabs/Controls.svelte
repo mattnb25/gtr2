@@ -31,8 +31,8 @@
   <!-- ── String (selected note's string) ────────────── -->
   <div class="group">
     <span class="group-label">String</span>
-    <button onclick={() => ed.moveString(-1)} disabled={!ed.hasActiveNote} title="Move note to higher string">▲</button>
-    <button onclick={() => ed.moveString(1)}  disabled={!ed.hasActiveNote} title="Move note to lower string">▼</button>
+  <button onclick={() => ed.moveString(-1)} disabled={!ed.canMoveStringUp} title="Move note to higher string">▲</button>
+  <button onclick={() => ed.moveString(1)}  disabled={!ed.canMoveStringDown} title="Move note to lower string">▼</button>
     <span class="info" title="Current string">str {ed.activeString}</span>
   </div>
 
