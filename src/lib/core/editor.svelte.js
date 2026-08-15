@@ -1463,9 +1463,9 @@ export class Editor {
   // barCountPerPartial splitting is defeated by multi-bar effects such as
   // let-ring/palm-mute). On big multitrack files that single canvas can be
   // 100k+ px wide, which exceeds browser canvas limits and/or takes ages to
-  // rasterize (blank score / freeze). Disable lazy loading and reduce the
-  // display scale after the first full render so the final canvas stays within
-  // a safe pixel budget.
+  // rasterize (blank score / freeze). Start from the user's current scale,
+  // then after the first full render shrink display.scale just enough so the
+  // canvas stays within a safe pixel budget.
   #fitHorizontalScale(api) {
     if (!api?.score) return;
     const maxWidth = 28000;
@@ -1487,13 +1487,13 @@ export class Editor {
       if (total * dpr > maxWidth) {
         api.settings.display.scale = Math.max(
           minScale,
-          maxWidth / (total * dpr)
+          (maxWidth / (total * dpr)) * api.settings.display.scale
         );
         api.updateSettings();
       }
     };
     try { api.renderer.renderFinished.on(handler); } catch {}
-    setTimeout(handler, 200);
+    setTimeout(handler, 300);
   }
 
   // ── Internal ─────────────────────────────────────────────────────────────────
@@ -1581,7 +1581,7 @@ export class Editor {
     if (!skipMidiSync) {
       try {
         const api = this.#engine.api;
-        const wasPlaying = api.playerState === 1;
+        const wasPlaying = api.playerState === 2;
         const tick = api.tickPosition || 0;
         let handled = false;
         let unregister;
@@ -1590,6 +1590,19 @@ export class Editor {
             if (handled) return;
             handled = true;
             try { api.player.resetChannelStates(); } catch {}
+            try {
+              const score = api.score;
+              if (score) {
+                for (const track of score.tracks) {
+                  const program = track.playbackInfo.program;
+                  for (const ch of [track.playbackInfo.primaryChannel, track.playbackInfo.secondaryChannel]) {
+                    if (ch >= 0 && ch !== 9) {
+                      try { api.player.synthesizer.channelSetPresetNumber(ch, program, false); } catch {}
+                    }
+                  }
+                }
+              }
+            } catch {}
             if (wasPlaying) api.play();
             if (tick > 0) api.tickPosition = tick;
             try { api.updateSyncPoints(); } catch {}

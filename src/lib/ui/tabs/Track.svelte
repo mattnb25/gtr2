@@ -48,7 +48,6 @@
     { key: "standard", label: "Standard" },
     { key: "scoretab", label: "Standard + Tab" },
     { key: "tab", label: "Tab" },
-    { key: "grand", label: "Grand Staff" },
     { key: "drum", label: "Drums" },
   ];
 
@@ -230,10 +229,15 @@
             >{m.label}</button>
           {/each}
         </div>
+        <button
+          class="mini"
+          title="Create grand staff (treble + bass)"
+          onclick={() => ed.setTrackStaffMode(selected, "grand")}
+        >Grand Staff</button>
       </div>
 
       <div class="field">
-        <span class="field-label">Clefs ({staffCount})</span>
+        <span class="field-label">Staff Editors ({staffCount})</span>
         <div class="clefs">
           {#each Array(staffCount) as _, si}
             <div class="clef-row">
@@ -244,6 +248,15 @@
               >
                 {#each CLEFS as c}
                   <option value={c.key}>{c.label}</option>
+                {/each}
+              </select>
+              <select
+                class="staff-mode"
+                value={ed.getStaffStaffMode(selected, si)}
+                onchange={(e) => ed.setStaffStaffMode(selected, si, e.target.value)}
+              >
+                {#each STAFF_MODES as m}
+                  <option value={m.key}>{m.label}</option>
                 {/each}
               </select>
               {#if staffCount > 1}
@@ -629,5 +642,28 @@
   .clef-row select {
     width: 100px;
     font-size: 0.75rem;
+  }
+
+  .clef-row select.staff-mode {
+    width: 120px;
+  }
+
+  .clefs {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .clef-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .clef-label {
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    width: 50px;
+    flex-shrink: 0;
   }
 </style>
