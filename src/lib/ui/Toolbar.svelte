@@ -31,6 +31,7 @@
     {#each ["score", "controls", "track", "bar", "beat", "note"] as tab}
         <button
             class:active={activeTab === tab}
+            disabled={pb.isPlaying}
             onclick={() => {
                 activeTab = tab;
             }}

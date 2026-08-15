@@ -29,16 +29,15 @@
     <button onclick={() => project.io.newFile()}>New</button>
 </PopoverBtn>
 
-<input
+  <input
     type="file"
     bind:this={fileInput}
     onchange={(e) => {
-        if (e.target.files[0]) project.io.loadFileData(e.target.files[0]);
-        e.target.value = "";
+      if (e.target.files[0]) project.io.loadFileData(e.target.files[0]);
+      e.target.value = "";
     }}
-    accept=".gp,.gp3,.gp4,.gp5,.gpx,.atex,.xml,.mxl,.musicxml"
     style="display: none;"
-/>
+  />
 
 <PopoverBtn name="save">
     <button onclick={() => project.io.saveFile()}>Save changes</button>

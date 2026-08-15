@@ -92,6 +92,9 @@ export class Editor {
       this.#applyVisibility();
       const firstBeat = this.getFirstBeat();
       if (firstBeat) this.selectBeat(firstBeat);
+      if (this.settings?.display?.layoutMode === 1) {
+        this.#fitHorizontalScale(this.#engine.api);
+      }
     });
   }
 
@@ -1360,11 +1363,11 @@ export class Editor {
       api.settings.core.enableLazyLoading = value !== 1;
       if (value === 1) {
         this.#horizontalPrevScale = api.settings.display.scale;
+        this.#fitHorizontalScale(api);
       } else if (this.#horizontalPrevScale != null) {
         api.settings.display.scale = this.#horizontalPrevScale;
         this.#horizontalPrevScale = null;
       }
-    } else if (field === "scale" && api.settings.display.layoutMode === 1) {
     }
     api.updateSettings();
     // Re-target the track list explicitly and scroll back to the start; a plain
@@ -1388,7 +1391,7 @@ export class Editor {
   // render code keep working because only display.scale changes.
   #fitHorizontalScale(api) {
     if (!api?.score) return;
-    const maxWidth = 28000;      // canvas CSS-px budget (× dpr still < 65535)
+    const maxWidth = 28000;
     const minScale = 0.15;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     let fitted = false;
@@ -1396,36 +1399,41 @@ export class Editor {
       if (fitted) return;
       fitted = true;
       try { api.renderer.partialLayoutFinished.off(handler); } catch {}
-      // The fitted render is bounded now, so lazy loading can stay off.
+      try { api.renderer.renderFinished.off(fallbackHandler); } catch {}
       api.settings.core.enableLazyLoading = false;
       api.updateSettings();
-      // Re-render with the fitted scale before the lazy intersection observer
-      // can rasterize the oversized measure-pass canvas.
       queueMicrotask(() => this.#finishRender());
     };
     const handler = (args) => {
       const total = args?.totalWidth;
       if (!total || total <= 0) return;
-      // Remember the user's own scale the first time we auto-fit, so switching
-      // back to page layout restores exactly what they had.
       if (this.#horizontalPrevScale === null) {
         this.#horizontalPrevScale = api.settings.display.scale;
       }
-      // totalWidth is layout width at the CURRENT scale: scale is already
-      // applied, so recompute the scale factor by ratio.
       if (total * dpr > maxWidth) {
         api.settings.display.scale = Math.max(
           minScale,
           (maxWidth / (total * dpr)) * api.settings.display.scale
         );
-        api.updateSettings();
+      }
+      finish();
+    };
+    const fallbackHandler = () => {
+      const total = api.renderer?.totalWidth;
+      if (!total || total <= 0) return;
+      if (this.#horizontalPrevScale === null) {
+        this.#horizontalPrevScale = api.settings.display.scale;
+      }
+      if (total * dpr > maxWidth) {
+        api.settings.display.scale = Math.max(
+          minScale,
+          (maxWidth / (total * dpr)) * api.settings.display.scale
+        );
       }
       finish();
     };
     try { api.renderer.partialLayoutFinished.on(handler); } catch {}
-    // The render triggered by the caller (updateSettingsField below) is the
-    // measuring pass: with lazy loading enabled here it only lays out, then
-    // finish() disables lazy loading and the microtask re-renders fitted.
+    try { api.renderer.renderFinished.on(fallbackHandler); } catch {}
     api.settings.core.enableLazyLoading = true;
     api.updateSettings();
   }
@@ -1518,11 +1526,20 @@ export class Editor {
         const wasPlaying = api.playerState === 1;
         const tick = api.tickPosition || 0;
         api.loadMidiForScore();
-        if (wasPlaying) api.play();
-        if (tick > 0) api.tickPosition = tick;
-        try { api.updateSyncPoints(); } catch {}
+        let handled = false;
+        let unregister;
+        try {
+          unregister = api.midiLoaded.on(() => {
+            if (handled) return;
+            handled = true;
+            if (wasPlaying) api.play();
+            if (tick > 0) api.tickPosition = tick;
+            try { api.updateSyncPoints(); } catch {}
+            this.#syncPlaybackState();
+            if (typeof unregister === "function") unregister();
+          });
+        } catch {}
       } catch (e) { console.warn("loadMidiForScore:", e); }
-      this.#syncPlaybackState();
     }
 
     if (beatIdx !== -1 && beat?.voice?.beats && beatIdx < beat.voice.beats.length) {

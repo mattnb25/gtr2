@@ -7,6 +7,7 @@
 
   function handleKeydown(e) {
     if (["INPUT", "TEXTAREA", "SELECT"].includes(e.target?.tagName)) return;
+    if (project.playback.isPlaying) return;
 
     if (e.key === "ArrowLeft") {
       e.preventDefault();

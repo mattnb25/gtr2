@@ -64,8 +64,10 @@
         value={pb.currentTime}
         oninput={(e) => {
           pb.isSeeking = true;
+          pb.currentTime = Number(e.target.value);
+        }}
+        onchange={(e) => {
           const t = Number(e.target.value);
-          pb.currentTime = t;
           pb.seek(t);
         }}
       />
