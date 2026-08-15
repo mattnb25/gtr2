@@ -1102,6 +1102,74 @@ export class Editor {
     this.#finishAndUpdate(true);
   }
 
+  getStaffStaffMode(index, staffIndex) {
+    const staff = this.score?.tracks?.[index]?.staves?.[staffIndex];
+    if (!staff) return "tab";
+    if (staff.isPercussion) return "drum";
+    return staff.showTablature ? "tab" : "standard";
+  }
+
+  setStaffStaffMode(index, staffIndex, mode) {
+    const staff = this.score?.tracks?.[index]?.staves?.[staffIndex];
+    if (!staff) return;
+    this.#project.history.snapshot();
+    const isDrum = mode === "drum";
+    if (isDrum) {
+      staff.isPercussion = true;
+      staff.showTablature = false;
+      staff.showStandardNotation = true;
+      staff.stringTuning = new alphaTab.model.Tuning("", [], false);
+      for (const bar of staff.bars) {
+        bar.clef = alphaTab.model.Clef.Neutral;
+        for (const voice of bar.voices) {
+          for (const beat of voice.beats) {
+            for (const note of beat.notes || []) {
+              note.percussionArticulation = note.percussionArticulation < 0 ? 36 : note.percussionArticulation;
+              note.string = -1;
+              note.fret = -1;
+            }
+          }
+        }
+      }
+    } else {
+      staff.isPercussion = false;
+      staff.showStandardNotation = mode === "standard";
+      staff.showTablature = mode !== "standard";
+      if (!staff.stringTuning?.tunings?.length) {
+        staff.stringTuning = alphaTab.model.Tuning.getDefaultTuningFor(6) ||
+          new alphaTab.model.Tuning("Guitar Standard Tuning", [64, 59, 55, 50, 45, 40], true);
+      }
+      const tunings = staff.stringTuning.tunings;
+      let hasPianoNote = false;
+      for (const bar of staff.bars) {
+        bar.clef = alphaTab.model.Clef.G2;
+        for (const voice of bar.voices) {
+          for (const beat of voice.beats) {
+            for (const note of beat.notes || []) {
+              note.percussionArticulation = -1;
+              if (note.octave >= 0 && note.tone >= 0) hasPianoNote = true;
+            }
+          }
+        }
+      }
+      if (hasPianoNote) this.#retuneToTuning(staff, tunings);
+      for (const bar of staff.bars) {
+        for (const voice of bar.voices) {
+          for (const beat of voice.beats) {
+            for (const note of beat.notes || []) {
+              if (!note.isStringed && !(note.octave >= 0 && note.tone >= 0)) {
+                note.string = 1;
+                note.fret = 0;
+              }
+            }
+          }
+        }
+      }
+    }
+    this.#applyVoiceDisplay();
+    this.#finishAndUpdate(true);
+  }
+
   getTrackProgram(index) {
     return this.score?.tracks?.[index]?.playbackInfo?.program ?? 0;
   }
@@ -1385,56 +1453,34 @@ export class Editor {
   // barCountPerPartial splitting is defeated by multi-bar effects such as
   // let-ring/palm-mute). On big multitrack files that single canvas can be
   // 100k+ px wide, which exceeds browser canvas limits and/or takes ages to
-  // rasterize (blank score / freeze). Measure the full layout width via a cheap
-  // lazy pre-pass (layout only, no rasterization), then reduce the display
-  // scale so the final canvas stays within a safe pixel budget. The cursor and
-  // render code keep working because only display.scale changes.
+  // rasterize (blank score / freeze). We render a cheap measuring pass with
+  // lazy loading disabled so renderFinished reports the true full layout
+  // width, then reduce display.scale so the final canvas stays within a safe
+  // pixel budget. The cursor and render code keep working because only
+  // display.scale changes.
   #fitHorizontalScale(api) {
     if (!api?.score) return;
     const maxWidth = 28000;
     const minScale = 0.15;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    let fitted = false;
-    const finish = () => {
-      if (fitted) return;
-      fitted = true;
-      try { api.renderer.partialLayoutFinished.off(handler); } catch {}
-      try { api.renderer.renderFinished.off(fallbackHandler); } catch {}
-      api.settings.core.enableLazyLoading = false;
-      api.updateSettings();
-      queueMicrotask(() => this.#finishRender());
-    };
-    const handler = (args) => {
-      const total = args?.totalWidth;
-      if (!total || total <= 0) return;
-      if (this.#horizontalPrevScale === null) {
-        this.#horizontalPrevScale = api.settings.display.scale;
-      }
-      if (total * dpr > maxWidth) {
-        api.settings.display.scale = Math.max(
-          minScale,
-          (maxWidth / (total * dpr)) * api.settings.display.scale
-        );
-      }
-      finish();
-    };
-    const fallbackHandler = () => {
+    if (this.#horizontalPrevScale === null) {
+      this.#horizontalPrevScale = api.settings.display.scale;
+    }
+    api.settings.core.enableLazyLoading = false;
+    const handler = () => {
+      try { api.renderer.renderFinished.off(handler); } catch {}
       const total = api.renderer?.totalWidth;
       if (!total || total <= 0) return;
-      if (this.#horizontalPrevScale === null) {
-        this.#horizontalPrevScale = api.settings.display.scale;
-      }
       if (total * dpr > maxWidth) {
         api.settings.display.scale = Math.max(
           minScale,
           (maxWidth / (total * dpr)) * api.settings.display.scale
         );
       }
-      finish();
+      api.updateSettings();
+      this.#finishRender();
     };
-    try { api.renderer.partialLayoutFinished.on(handler); } catch {}
-    try { api.renderer.renderFinished.on(fallbackHandler); } catch {}
-    api.settings.core.enableLazyLoading = true;
+    try { api.renderer.renderFinished.on(handler); } catch {}
     api.updateSettings();
   }
 
@@ -1532,6 +1578,7 @@ export class Editor {
           unregister = api.midiLoaded.on(() => {
             if (handled) return;
             handled = true;
+            try { api.player.resetChannelStates(); } catch {}
             if (wasPlaying) api.play();
             if (tick > 0) api.tickPosition = tick;
             try { api.updateSyncPoints(); } catch {}

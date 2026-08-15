@@ -244,6 +244,15 @@
                   <option value={c.key}>{c.label}</option>
                 {/each}
               </select>
+              <select
+                class="staff-mode"
+                value={ed.getStaffStaffMode(selected, si)}
+                onchange={(e) => ed.setStaffStaffMode(selected, si, e.target.value)}
+              >
+                {#each STAFF_MODES as m}
+                  <option value={m.key}>{m.label}</option>
+                {/each}
+              </select>
               {#if staffCount > 1}
                 <button
                   class="mini danger"
@@ -627,5 +636,9 @@
   .clef-row select {
     width: 100px;
     font-size: 0.75rem;
+  }
+
+  .clef-row select.staff-mode {
+    width: 130px;
   }
 </style>
