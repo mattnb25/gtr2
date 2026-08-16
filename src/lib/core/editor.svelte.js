@@ -1522,7 +1522,7 @@ export class Editor {
 
     if (!skipMidiSync) {
       try {
-        const api = this.#engine.api;
+const api = this.#engine.api;
         const wasPlaying = api.playerState === 2;
         const tick = api.tickPosition || 0;
         let handled = false;
@@ -1541,6 +1541,13 @@ export class Editor {
         };
         try { unregister = api.midiLoaded.on(handler); } catch {}
         api.loadMidiForScore();
+        // Force soundfont reload to ensure new programs hear correctly
+        if (api?.soundFont) {
+          api.soundFont = null;
+          api.soundFont = {};
+          // Trigger soundfont recreation
+          this.#engine.requestSoundFontUpdate();
+        }
         setTimeout(() => {
           try {
             if (!handled) handler();
@@ -1548,6 +1555,7 @@ export class Editor {
           } catch {}
         }, 100);
       } catch (e) { console.warn("loadMidiForScore:", e); }
+    }
     }
 
     if (beatIdx !== -1 && beat?.voice?.beats && beatIdx < beat.voice.beats.length) {
