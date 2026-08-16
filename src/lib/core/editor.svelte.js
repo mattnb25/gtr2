@@ -1110,7 +1110,7 @@ export class Editor {
     const track = this.score?.tracks?.[index];
     if (!track || this.isTrackDrum(index)) return;
     this.#project.history.snapshot();
-    api.setTrackProgramIndex(track.index, Math.max(0, Math.min(127, Math.round(program))));
+    track.playbackInfo.program = Math.max(0, Math.min(127, Math.round(program)));
     this.#applyInstrumentDefaults(index);
     this.#assignChannels();
     this.#applyVoiceDisplay();
@@ -1522,7 +1522,7 @@ export class Editor {
 
     if (!skipMidiSync) {
       try {
-const api = this.#engine.api;
+        const api = this.#engine.api;
         const wasPlaying = api.playerState === 2;
         const tick = api.tickPosition || 0;
         let handled = false;
@@ -1541,13 +1541,6 @@ const api = this.#engine.api;
         };
         try { unregister = api.midiLoaded.on(handler); } catch {}
         api.loadMidiForScore();
-        // Force soundfont reload to ensure new programs hear correctly
-        if (api?.soundFont) {
-          api.soundFont = null;
-          api.soundFont = {};
-          // Trigger soundfont recreation
-          this.#engine.requestSoundFontUpdate();
-        }
         setTimeout(() => {
           try {
             if (!handled) handler();
@@ -1555,7 +1548,6 @@ const api = this.#engine.api;
           } catch {}
         }, 100);
       } catch (e) { console.warn("loadMidiForScore:", e); }
-    }
     }
 
     if (beatIdx !== -1 && beat?.voice?.beats && beatIdx < beat.voice.beats.length) {
