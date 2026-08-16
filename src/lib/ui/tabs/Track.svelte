@@ -59,6 +59,14 @@
     { key: alphaTab.model.Clef.Neutral, label: "Percussion" },
   ];
 
+  const STAFF_PRESETS = [
+    { key: "treble", label: "Treble", clefs: [alphaTab.model.Clef.G2], modes: ["standard"] },
+    { key: "bass", label: "Bass", clefs: [alphaTab.model.Clef.F4], modes: ["standard"] },
+    { key: "grand", label: "Grand Staff", clefs: [alphaTab.model.Clef.G2, alphaTab.model.Clef.F4], modes: ["standard", "standard"] },
+    { key: "alto", label: "Alto", clefs: [alphaTab.model.Clef.C4], modes: ["standard"] },
+    { key: "tenor", label: "Tenor", clefs: [alphaTab.model.Clef.C3], modes: ["standard"] },
+  ];
+
   const selected = $derived(ed.selectedTrackIndex);
   const hasTracks = $derived(ed.tracks.length > 0);
   const mode = $derived(ed.getTrackStaffMode(selected));
@@ -229,15 +237,24 @@
             >{m.label}</button>
           {/each}
         </div>
-        <button
-          class="mini"
-          title="Create grand staff (treble + bass)"
-          onclick={() => ed.setTrackStaffMode(selected, "grand")}
-        >Grand Staff</button>
       </div>
 
       <div class="field">
-        <span class="field-label">Staff Editors ({staffCount})</span>
+        <span class="field-label">Staff Preset</span>
+        <div class="seg">
+          {#each STAFF_PRESETS as p}
+            <button
+              class:active={ed.getTrackStaffPreset(selected) === p.key}
+              data-preset={p.key}
+              title={p.label}
+              onclick={(e) => ed.setTrackStaffPreset(selected, e.target.dataset.preset)}
+            >{p.label}</button>
+          {/each}
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="field-label">Clefs ({staffCount})</span>
         <div class="clefs">
           {#each Array(staffCount) as _, si}
             <div class="clef-row">
@@ -248,15 +265,6 @@
               >
                 {#each CLEFS as c}
                   <option value={c.key}>{c.label}</option>
-                {/each}
-              </select>
-              <select
-                class="staff-mode"
-                value={ed.getStaffStaffMode(selected, si)}
-                onchange={(e) => ed.setStaffStaffMode(selected, si, e.target.value)}
-              >
-                {#each STAFF_MODES as m}
-                  <option value={m.key}>{m.label}</option>
                 {/each}
               </select>
               {#if staffCount > 1}

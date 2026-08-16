@@ -92,6 +92,7 @@ export class Editor {
       this.#applyVisibility();
       const firstBeat = this.getFirstBeat();
       if (firstBeat) this.selectBeat(firstBeat);
+      this.#finishRender();
       if (this.settings?.display?.layoutMode === 1) {
         this.#fitHorizontalScale(this.#engine.api);
       }
@@ -234,16 +235,15 @@ export class Editor {
           h: Math.max(nb.h + 8, 20),
         };
       } else if (this.activeNote) {
-        // Fallback: place cursor at the beat's onNotesX on the active string row
         const activeStr = this.activeNote.string ?? this.activeString;
         const clampedStr = Math.min(Math.max(activeStr, 1), this.stringCount);
-        const stringGap = vb.h / Math.max(this.stringCount - 1, 1);
+        const stringGap = Math.max(vb.h / Math.max(this.stringCount - 1, 1), 14);
         const stringY = vb.y + (clampedStr - 1) * stringGap;
         this.cursorBox = {
           x: (beatBounds.onNotesX ?? vb.x) - 4,
           y: stringY - 9,
           w: Math.max(vb.w + 6, 20),
-          h: 18,
+          h: Math.max(18, stringGap),
         };
       } else {
         this.cursorBox = null;
@@ -958,6 +958,67 @@ export class Editor {
     return "standard";
   }
 
+  getTrackStaffPreset(index) {
+    const track = this.score?.tracks?.[index];
+    if (!track) return "treble";
+    const clefs = track.staves.map((s) => s.bars[0]?.clef).filter((c) => c != null);
+    if (clefs.includes(alphaTab.model.Clef.G2) && clefs.includes(alphaTab.model.Clef.F4)) return "grand";
+    if (clefs.includes(alphaTab.model.Clef.F4)) return "bass";
+    if (clefs.includes(alphaTab.model.Clef.C4)) return "alto";
+    if (clefs.includes(alphaTab.model.Clef.C3)) return "tenor";
+    return "treble";
+  }
+
+  setTrackStaffPreset(index, preset) {
+    const track = this.score?.tracks?.[index];
+    if (!track) return;
+    this.#project.history.snapshot();
+
+    const presetData = [
+      { key: "treble", clefs: [alphaTab.model.Clef.G2], modes: ["standard"] },
+      { key: "bass", clefs: [alphaTab.model.Clef.F4], modes: ["standard"] },
+      { key: "grand", clefs: [alphaTab.model.Clef.G2, alphaTab.model.Clef.F4], modes: ["standard", "standard"] },
+      { key: "alto", clefs: [alphaTab.model.Clef.C4], modes: ["standard"] },
+      { key: "tenor", clefs: [alphaTab.model.Clef.C3], modes: ["standard"] },
+    ].find((p) => p.key === preset) || { key: "treble", clefs: [alphaTab.model.Clef.G2], modes: ["standard"] };
+
+    while (track.staves.length > presetData.clefs.length) {
+      track.staves.pop();
+    }
+    while (track.staves.length < presetData.clefs.length) {
+      const newStaff = new alphaTab.model.Staff();
+      const firstStaff = track.staves[0];
+      newStaff.showStandardNotation = true;
+      newStaff.showTablature = false;
+      if (firstStaff?.stringTuning?.tunings?.length) {
+        newStaff.stringTuning = new alphaTab.model.Tuning(firstStaff.stringTuning.name, [...firstStaff.stringTuning.tunings], false);
+      }
+      if (firstStaff) {
+        for (const bar of firstStaff.bars) {
+          const newBar = new alphaTab.model.Bar();
+          newBar.clef = presetData.clefs[track.staves.length];
+          newStaff.addBar(newBar);
+        }
+      }
+      track.addStaff(newStaff);
+    }
+
+    for (let i = 0; i < track.staves.length; i++) {
+      const staff = track.staves[i];
+      staff.clef = presetData.clefs[i];
+      staff.showStandardNotation = presetData.modes[i] === "standard" || presetData.modes[i] === "scoretab";
+      staff.showTablature = presetData.modes[i] === "tab" || presetData.modes[i] === "scoretab";
+      staff.isPercussion = false;
+      if (!staff.stringTuning?.tunings?.length) {
+        staff.stringTuning = alphaTab.model.Tuning.getDefaultTuningFor(6) ||
+          new alphaTab.model.Tuning("Guitar Standard Tuning", [64, 59, 55, 50, 45, 40], true);
+      }
+    }
+
+    this.#applyVoiceDisplay();
+    this.#finishAndUpdate(true);
+  }
+
   getStaffCount(index) {
     return this.score?.tracks?.[index]?.staves?.length ?? 0;
   }
@@ -965,15 +1026,6 @@ export class Editor {
   getStaffClef(index, staffIndex) {
     const bar = this.score?.tracks?.[index]?.staves?.[staffIndex]?.bars?.[0];
     return bar?.clef ?? alphaTab.model.Clef.G2;
-  }
-
-  getStaffStaffMode(index, staffIndex) {
-    const staff = this.score?.tracks?.[index]?.staves?.[staffIndex];
-    if (!staff) return "tab";
-    if (staff.isPercussion) return "drum";
-    if (staff.showTablature && staff.showStandardNotation) return "scoretab";
-    if (staff.showTablature) return "tab";
-    return "standard";
   }
 
   setTrackStaffMode(index, mode) {
@@ -1116,67 +1168,6 @@ export class Editor {
     for (let i = staffIndex; i < track.staves.length; i++) {
       track.staves[i].index = i;
     }
-    this.#finishAndUpdate(true);
-  }
-
-  setStaffStaffMode(index, staffIndex, mode) {
-    const staff = this.score?.tracks?.[index]?.staves?.[staffIndex];
-    if (!staff) return;
-    this.#project.history.snapshot();
-    const isDrum = mode === "drum";
-    if (isDrum) {
-      staff.isPercussion = true;
-      staff.showTablature = false;
-      staff.showStandardNotation = true;
-      staff.stringTuning = new alphaTab.model.Tuning("", [], false);
-      for (const bar of staff.bars) {
-        bar.clef = alphaTab.model.Clef.Neutral;
-        for (const voice of bar.voices) {
-          for (const beat of voice.beats) {
-            for (const note of beat.notes || []) {
-              note.percussionArticulation = note.percussionArticulation < 0 ? 36 : note.percussionArticulation;
-              note.string = -1;
-              note.fret = -1;
-            }
-          }
-        }
-      }
-    } else {
-      staff.isPercussion = false;
-      staff.showStandardNotation = mode === "standard" || mode === "scoretab";
-      staff.showTablature = mode === "tab" || mode === "scoretab";
-      if (!staff.stringTuning?.tunings?.length) {
-        staff.stringTuning = alphaTab.model.Tuning.getDefaultTuningFor(6) ||
-          new alphaTab.model.Tuning("Guitar Standard Tuning", [64, 59, 55, 50, 45, 40], true);
-      }
-      const tunings = staff.stringTuning.tunings;
-      let hasPianoNote = false;
-      for (const bar of staff.bars) {
-        bar.clef = alphaTab.model.Clef.G2;
-        for (const voice of bar.voices) {
-          for (const beat of voice.beats) {
-            for (const note of beat.notes || []) {
-              note.percussionArticulation = -1;
-              if (note.octave >= 0 && note.tone >= 0) hasPianoNote = true;
-            }
-          }
-        }
-      }
-      if (hasPianoNote) this.#retuneToTuning(staff, tunings);
-      for (const bar of staff.bars) {
-        for (const voice of bar.voices) {
-          for (const beat of voice.beats) {
-            for (const note of beat.notes || []) {
-              if (!note.isStringed && !(note.octave >= 0 && note.tone >= 0)) {
-                note.string = 1;
-                note.fret = 0;
-              }
-            }
-          }
-        }
-      }
-    }
-    this.#applyVoiceDisplay();
     this.#finishAndUpdate(true);
   }
 
@@ -1463,9 +1454,8 @@ export class Editor {
   // barCountPerPartial splitting is defeated by multi-bar effects such as
   // let-ring/palm-mute). On big multitrack files that single canvas can be
   // 100k+ px wide, which exceeds browser canvas limits and/or takes ages to
-  // rasterize (blank score / freeze). Start from the user's current scale,
-  // then after the first full render shrink display.scale just enough so the
-  // canvas stays within a safe pixel budget.
+  // rasterize (blank score / freeze). After the layout mode changes, poll
+  // renderer.totalWidth and reduce display.scale just enough to fit.
   #fitHorizontalScale(api) {
     if (!api?.score) return;
     const maxWidth = 28000;
@@ -1477,13 +1467,17 @@ export class Editor {
     api.settings.core.enableLazyLoading = false;
     api.updateSettings();
 
-    let fitted = false;
-    const handler = () => {
-      if (fitted) return;
-      fitted = true;
-      try { api.renderer.renderFinished.off(handler); } catch {}
+    let attempts = 0;
+    const maxAttempts = 20;
+    const check = () => {
+      attempts++;
       const total = api.renderer?.totalWidth;
-      if (!total || total <= 0) return;
+      if (!total || total <= 0) {
+        if (attempts < maxAttempts) {
+          setTimeout(check, 150);
+        }
+        return;
+      }
       if (total * dpr > maxWidth) {
         api.settings.display.scale = Math.max(
           minScale,
@@ -1492,8 +1486,7 @@ export class Editor {
         api.updateSettings();
       }
     };
-    try { api.renderer.renderFinished.on(handler); } catch {}
-    setTimeout(handler, 300);
+    setTimeout(check, 400);
   }
 
   // ── Internal ─────────────────────────────────────────────────────────────────
@@ -1603,7 +1596,10 @@ export class Editor {
                 }
               }
             } catch {}
-            if (wasPlaying) api.play();
+            if (wasPlaying) {
+              try { api.pause(); } catch {}
+              api.play();
+            }
             if (tick > 0) api.tickPosition = tick;
             try { api.updateSyncPoints(); } catch {}
             this.#syncPlaybackState();
