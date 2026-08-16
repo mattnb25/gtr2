@@ -46,8 +46,7 @@
 
   const STAFF_MODES = [
     { key: "standard", label: "Standard" },
-    { key: "scoretab", label: "Standard + Tab" },
-    { key: "tab", label: "Tab" },
+    { key: "tab", label: "Standard + Tab" },
     { key: "drum", label: "Drums" },
   ];
 
@@ -57,14 +56,6 @@
     { key: alphaTab.model.Clef.C4, label: "Alto" },
     { key: alphaTab.model.Clef.C3, label: "Tenor" },
     { key: alphaTab.model.Clef.Neutral, label: "Percussion" },
-  ];
-
-  const STAFF_PRESETS = [
-    { key: "treble", label: "Treble", clefs: [alphaTab.model.Clef.G2], modes: ["standard"] },
-    { key: "bass", label: "Bass", clefs: [alphaTab.model.Clef.F4], modes: ["standard"] },
-    { key: "grand", label: "Grand Staff", clefs: [alphaTab.model.Clef.G2, alphaTab.model.Clef.F4], modes: ["standard", "standard"] },
-    { key: "alto", label: "Alto", clefs: [alphaTab.model.Clef.C4], modes: ["standard"] },
-    { key: "tenor", label: "Tenor", clefs: [alphaTab.model.Clef.C3], modes: ["standard"] },
   ];
 
   const selected = $derived(ed.selectedTrackIndex);
@@ -235,20 +226,6 @@
               title={m.label}
               onclick={setMode}
             >{m.label}</button>
-          {/each}
-        </div>
-      </div>
-
-      <div class="field">
-        <span class="field-label">Staff Preset</span>
-        <div class="seg">
-          {#each STAFF_PRESETS as p}
-            <button
-              class:active={ed.getTrackStaffPreset(selected) === p.key}
-              data-preset={p.key}
-              title={p.label}
-              onclick={(e) => ed.setTrackStaffPreset(selected, e.target.dataset.preset)}
-            >{p.label}</button>
           {/each}
         </div>
       </div>
@@ -650,28 +627,5 @@
   .clef-row select {
     width: 100px;
     font-size: 0.75rem;
-  }
-
-  .clef-row select.staff-mode {
-    width: 120px;
-  }
-
-  .clefs {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .clef-row {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .clef-label {
-    font-size: 0.7rem;
-    color: var(--color-text-muted);
-    width: 50px;
-    flex-shrink: 0;
   }
 </style>
