@@ -1523,22 +1523,30 @@ export class Editor {
     if (!skipMidiSync) {
       try {
         const api = this.#engine.api;
-        const wasPlaying = api.playerState === 1;
+        const wasPlaying = api.playerState === 2;
         const tick = api.tickPosition || 0;
-        api.loadMidiForScore();
         let handled = false;
         let unregister;
-        try {
-          unregister = api.midiLoaded.on(() => {
-            if (handled) return;
-            handled = true;
-            if (wasPlaying) api.play();
-            if (tick > 0) api.tickPosition = tick;
-            try { api.updateSyncPoints(); } catch {}
-            this.#syncPlaybackState();
-            if (typeof unregister === "function") unregister();
-          });
-        } catch {}
+        const handler = () => {
+          if (handled) return;
+          handled = true;
+          if (tick > 0) api.tickPosition = tick;
+          if (wasPlaying) {
+            try { api.player.state = 1; } catch {}
+            api.play();
+          }
+          try { api.updateSyncPoints(); } catch {}
+          this.#syncPlaybackState();
+          if (typeof unregister === "function") unregister();
+        };
+        try { unregister = api.midiLoaded.on(handler); } catch {}
+        api.loadMidiForScore();
+        setTimeout(() => {
+          try {
+            if (!handled) handler();
+            if (unregister) unregister.off?.();
+          } catch {}
+        }, 100);
       } catch (e) { console.warn("loadMidiForScore:", e); }
     }
 
