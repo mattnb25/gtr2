@@ -1577,36 +1577,25 @@ export class Editor {
         const wasPlaying = api.playerState === 2;
         const tick = api.tickPosition || 0;
         let handled = false;
-        let unregister;
-        try {
-          unregister = api.midiLoaded.on(() => {
-            if (handled) return;
-            handled = true;
-            try { api.player.resetChannelStates(); } catch {}
-            try {
-              const score = api.score;
-              if (score) {
-                for (const track of score.tracks) {
-                  const program = track.playbackInfo.program;
-                  for (const ch of [track.playbackInfo.primaryChannel, track.playbackInfo.secondaryChannel]) {
-                    if (ch >= 0 && ch !== 9) {
-                      try { api.player.synthesizer.channelSetPresetNumber(ch, program, false); } catch {}
-                    }
-                  }
-                }
-              }
-            } catch {}
-            if (wasPlaying) {
-              try { api.pause(); } catch {}
-              api.play();
-            }
-            if (tick > 0) api.tickPosition = tick;
-            try { api.updateSyncPoints(); } catch {}
-            this.#syncPlaybackState();
-            if (typeof unregister === "function") unregister();
-          });
-        } catch {}
+        const handler = () => {
+          if (handled) return;
+          handled = true;
+          if (tick > 0) api.tickPosition = tick;
+          if (wasPlaying) {
+            try { api.player.state = 1; } catch {}
+            api.play();
+          }
+          this.#syncPlaybackState();
+        };
+        let registration;
+        try { registration = api.midiLoaded.on(handler); } catch {}
         api.loadMidiForScore();
+        setTimeout(() => {
+          try {
+            if (!handled) handler();
+            if (registration) registration.off();
+          } catch {}
+        }, 100);
       } catch (e) { console.warn("loadMidiForScore:", e); }
     }
 
