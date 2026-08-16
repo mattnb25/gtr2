@@ -1110,7 +1110,7 @@ export class Editor {
     const track = this.score?.tracks?.[index];
     if (!track || this.isTrackDrum(index)) return;
     this.#project.history.snapshot();
-    track.playbackInfo.program = Math.max(0, Math.min(127, Math.round(program)));
+    api.setTrackProgramIndex(track.index, Math.max(0, Math.min(127, Math.round(program))));
     this.#applyInstrumentDefaults(index);
     this.#assignChannels();
     this.#applyVoiceDisplay();
