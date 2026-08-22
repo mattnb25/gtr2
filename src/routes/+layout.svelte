@@ -19,6 +19,8 @@
       e.preventDefault();
       if (e.shiftKey) {
         ed.moveString(-1);
+      } else if (e.altKey || e.ctrlKey) {
+        ed.moveStaff(-1);
       } else {
         ed.moveNote(-1);
       }
@@ -26,9 +28,17 @@
       e.preventDefault();
       if (e.shiftKey) {
         ed.moveString(1);
+      } else if (e.altKey || e.ctrlKey) {
+        ed.moveStaff(1);
       } else {
         ed.moveNote(1);
       }
+    } else if (e.key === "PageUp") {
+      e.preventDefault();
+      ed.moveStaff(-1);
+    } else if (e.key === "PageDown") {
+      e.preventDefault();
+      ed.moveStaff(1);
     } else if (e.key === "[") {
       e.preventDefault();
       ed.moveString(-1);
@@ -119,6 +129,9 @@
     margin: 0;
     padding: 0;
     line-height: 1.5;
+  }
+
+  :global(body, input, button, select, textarea) {
     font-family: var(--font-family-base);
   }
 

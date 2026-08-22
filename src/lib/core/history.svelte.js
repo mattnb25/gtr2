@@ -6,6 +6,9 @@ export class History {
   #undoStack = $state([]);
   #redoStack = $state([]);
   #maxSize = 50;
+  #lastSnapshotTime = 0;
+  // Rapid edits within this window share one undo step (ms)
+  #debounceMs = 300;
 
   constructor(engine, project) {
     this.#engine = engine;
@@ -19,9 +22,15 @@ export class History {
     return this.#redoStack.length > 0;
   }
 
-  /** Call BEFORE any mutation to snapshot the current score state. */
+  /** Call BEFORE any mutation to snapshot the current score state.
+   *  Rapid calls within #debounceMs are coalesced into a single undo step. */
   snapshot() {
     if (!this.#engine.api?.score) return;
+    const now = performance.now();
+    if (now - this.#lastSnapshotTime < this.#debounceMs && this.#undoStack.length > 0) {
+      return;
+    }
+    this.#lastSnapshotTime = now;
     const data = this.#capture();
     this.#undoStack.push(data);
     if (this.#undoStack.length > this.#maxSize) this.#undoStack.shift();

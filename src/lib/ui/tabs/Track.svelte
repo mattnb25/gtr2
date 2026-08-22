@@ -5,7 +5,6 @@
 
   let ed = $derived(project.editor);
 
-  // Which track is currently in inline-rename mode (-1 = none)
   let renamingIndex = $state(-1);
   let renameValue = $state("");
 
@@ -44,9 +43,9 @@
     "Telephone Ring", "Helicopter", "Applause", "Gunshot",
   ];
 
-  const STAFF_MODES = [
+  const DISPLAY_MODES = [
     { key: "standard", label: "Standard" },
-    { key: "tab", label: "Standard + Tab" },
+    { key: "tab", label: "Tab" },
     { key: "drum", label: "Drums" },
   ];
 
@@ -60,18 +59,16 @@
 
   const selected = $derived(ed.selectedTrackIndex);
   const hasTracks = $derived(ed.tracks.length > 0);
-  const mode = $derived(ed.getTrackStaffMode(selected));
-  const isDrum = $derived(mode === "drum");
   const program = $derived(ed.getTrackProgram(selected));
   const isFretted = $derived(ed.isFrettedInstrument(selected));
   const stringCount = $derived(ed.getTrackStringCount(selected));
   const staffCount = $derived(ed.getStaffCount(selected));
-  // Read the tuning fresh each time (it reads engine state) so edits re-render
   const tuningPitches = $derived.by(() => {
     const t = ed.getTrackTuning(selected);
     return t ? [...t.tunings] : [];
   });
   const drumKit = $derived(ed.drumKit);
+  const activeStaffIdx = $derived(ed.activeStaffIndex);
 
   function startRename(index) {
     renamingIndex = index;
@@ -89,10 +86,6 @@
     ed.setTrackProgram(selected, Number(e.target.value));
   }
 
-  function setMode(e) {
-    ed.setTrackStaffMode(selected, e.target.dataset.mode);
-  }
-
   function setCount(e) {
     ed.setTrackStringCount(selected, Number(e.target.value));
   }
@@ -106,19 +99,15 @@
     const [n, o] = alphaTab.model.Tuning.getTextPartsForTuning(midi);
     return `${n}${o}`;
   }
+
+  function isDrumMode(staffIndex) {
+    return ed.getStaffDisplayMode(selected, staffIndex) === "drum";
+  }
+  function isFrettedStaff(staffIndex) {
+    const mode = ed.getStaffDisplayMode(selected, staffIndex);
+    return mode === "tab";
+  }
 </script>
-
-<!--
-  Track tab — instrumentation / mixer
-
-  Add, Remove, Rename
-  Mute, Solo, Visibility (per track)
-  Multi-voice count (1–4, per track)
-  Instrument (MIDI program)
-  Staves (standard / standard+tab / drums)
-  Tuning (string count, custom pitches) — guitar/tab only
-  Drum kit (articulation picker) — drums only
--->
 
 <div class="track-tab">
   <div class="track-strip">
@@ -139,11 +128,7 @@
             }}
             onblur={() => commitRename(i)}
           />
-          <button
-            class="mini ok"
-            title="Save name"
-            onclick={() => commitRename(i)}>✓</button
-          >
+          <button class="mini ok" title="Save name" onclick={() => commitRename(i)}>✓</button>
         {:else}
           <button
             class="name-btn"
@@ -157,37 +142,29 @@
             class="mini mute"
             class:on={track.playbackInfo.isMute}
             title="Mute"
-            onclick={() => ed.toggleTrackMute(i)}>M</button
-          >
+            onclick={() => ed.toggleTrackMute(i)}>M</button>
           <button
             class="mini solo"
             class:on={track.playbackInfo.isSolo}
             title="Solo"
-            onclick={() => ed.toggleTrackSolo(i)}>S</button
-          >
+            onclick={() => ed.toggleTrackSolo(i)}>S</button>
           <button
             class="mini"
             class:on={track.isVisibleOnMultiTrack}
             title={track.isVisibleOnMultiTrack ? "Hide track" : "Show track"}
-            onclick={() => ed.toggleTrackVisible(i)}>👁</button
-          >
+            onclick={() => ed.toggleTrackVisible(i)}>👁</button>
           <button
             class="mini voices"
             class:on={i === ed.selectedTrackIndex}
             title="Voices per bar (1–4) — configure in the detail panel"
             onclick={() => ed.selectTrack(i)}
           >{ed.getTrackVoiceCount(i)}v</button>
-          <button
-            class="mini"
-            title="Rename"
-            onclick={() => startRename(i)}>✏</button
-          >
+          <button class="mini" title="Rename" onclick={() => startRename(i)}>✏</button>
           <button
             class="mini danger"
             title="Remove track"
             disabled={ed.tracks.length <= 1}
-            onclick={() => ed.removeTrack(i)}>✕</button
-          >
+            onclick={() => ed.removeTrack(i)}>✕</button>
         {/if}
       </div>
     {/each}
@@ -205,7 +182,7 @@
 
       <div class="field">
         <span class="field-label">Instrument</span>
-        {#if isDrum}
+        {#if isDrumMode(0)}
           <span class="drum-note">Drums (Percussion)</span>
         {:else}
           <select value={program} onchange={setProgram}>
@@ -217,27 +194,29 @@
       </div>
 
       <div class="field">
-        <span class="field-label">Staves</span>
-        <div class="seg">
-          {#each STAFF_MODES as m}
-            <button
-              class:active={mode === m.key}
-              data-mode={m.key}
-              title={m.label}
-              onclick={setMode}
-            >{m.label}</button>
-          {/each}
-        </div>
-      </div>
-
-      <div class="field">
-        <span class="field-label">Clefs ({staffCount})</span>
-        <div class="clefs">
+        <span class="field-label">Staves ({staffCount})</span>
+        <div class="staff-list">
           {#each Array(staffCount) as _, si}
-            <div class="clef-row">
-              <span class="clef-label">Staff {si + 1}</span>
+            {@const staffMode = ed.getStaffDisplayMode(selected, si)}
+            {@const staffClef = ed.getStaffClef(selected, si)}
+            <div class="staff-row" class:active-staff={si === activeStaffIdx}>
+              <button
+                class="staff-label"
+                title={`Edit staff ${si + 1}`}
+                onclick={() => ed.selectStaff(si)}
+              >Staff {si + 1}</button>
+              <div class="seg staff-seg">
+                {#each DISPLAY_MODES as m}
+                  <button
+                    class:active={staffMode === m.key}
+                    title={m.label}
+                    onclick={() => ed.setStaffDisplayMode(selected, si, m.key)}
+                  >{m.label}</button>
+                {/each}
+              </div>
               <select
-                value={ed.getStaffClef(selected, si)}
+                class="clef-select"
+                value={staffClef}
                 onchange={(e) => ed.setStaffClef(selected, si, Number(e.target.value))}
               >
                 {#each CLEFS as c}
@@ -290,7 +269,7 @@
         </span>
       </div>
 
-      {#if isDrum}
+      {#if isDrumMode(0)}
         <div class="field drum-kit">
           <span class="field-label">Drum Kit</span>
           <div class="pads">
@@ -329,21 +308,10 @@
           <div class="pitches">
             {#each tuningPitches as midi, s}
               <div class="pitch-row">
-                <span
-                  class="pitch-num"
-                  title={`String ${stringCount - s}`}
-                >{stringCount - s}</span>
-                <button
-                  class="mini"
-                  title="Lower pitch"
-                  onclick={() => nudgePitch(s, -1)}
-                >−</button>
+                <span class="pitch-num" title={`String ${stringCount - s}`}>{stringCount - s}</span>
+                <button class="mini" title="Lower pitch" onclick={() => nudgePitch(s, -1)}>−</button>
                 <span class="pitch-name">{pitchName(midi)}</span>
-                <button
-                  class="mini"
-                  title="Raise pitch"
-                  onclick={() => nudgePitch(s, 1)}
-                >+</button>
+                <button class="mini" title="Raise pitch" onclick={() => nudgePitch(s, 1)}>+</button>
               </div>
             {/each}
           </div>
@@ -545,6 +513,58 @@
     white-space: nowrap;
   }
 
+  .staff-list {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .staff-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 4px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+  }
+
+  .staff-row.active-staff {
+    background: var(--color-primary-alpha-10);
+    outline: 1px solid var(--color-primary);
+  }
+
+  .staff-label {
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    width: 48px;
+    flex-shrink: 0;
+    border: 1px solid transparent;
+    background: transparent;
+    padding: 1px 2px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .staff-row.active-staff .staff-label {
+    color: var(--color-primary);
+    font-weight: 700;
+  }
+
+  .staff-seg {
+    padding: 1px;
+  }
+
+  .staff-seg button {
+    padding: 1px 6px;
+    font-size: 0.7rem;
+  }
+
+  .clef-select {
+    width: 90px;
+    font-size: 0.75rem;
+  }
+
   .drum-kit {
     align-items: flex-start;
     flex-direction: column;
@@ -603,29 +623,5 @@
     font-size: 0.75rem;
     font-weight: 700;
     color: var(--color-text-dark);
-  }
-
-  .clefs {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .clef-row {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .clef-label {
-    font-size: 0.7rem;
-    color: var(--color-text-muted);
-    width: 50px;
-    flex-shrink: 0;
-  }
-
-  .clef-row select {
-    width: 100px;
-    font-size: 0.75rem;
   }
 </style>

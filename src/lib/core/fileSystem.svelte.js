@@ -25,6 +25,14 @@ export class FileSystem {
       const [handle] = await window.showOpenFilePicker({
         types: [
           {
+            description: "All Supported Files",
+            accept: {
+              "application/x-guitar-pro": [".gp", ".gp3", ".gp4", ".gp5", ".gpx"],
+              "text/x-alphatex": [".atex"],
+              "application/vnd.recordare.musicxml": [".xml", ".mxl", ".musicxml"],
+            },
+          },
+          {
             description: "Guitar Pro Files",
             accept: {
               "application/x-guitar-pro": [

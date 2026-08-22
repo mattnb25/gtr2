@@ -17,7 +17,7 @@ class Project {
   settings = {
     enableLazyLoading: true,
     core: {
-      engine: "html5",
+      engine: "svg",
       fontDirectory: "/font/",
       includeNoteBounds: true,
     },
